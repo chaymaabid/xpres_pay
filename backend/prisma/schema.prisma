@@ -1,0 +1,159 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  FARMER
+  RETAILER
+}
+
+enum EscrowState {
+  INITIATED
+  LOCKED
+  DELIVERED
+  REALISED
+}
+
+model User {
+  id               String        @id @default(uuid())
+  keycloakId       String        @unique
+  email            String        @unique
+  role             UserRole
+  stripeAccountId  String?       
+
+  trustProfile     TrustProfile?
+  
+  products         Product[]     @relation("UserProducts")
+
+  ordersAsBuyer    Order[]       @relation("BuyerOrders")
+
+  creditsGranted   Credit[]      @relation("Lender")
+  creditsReceived  Credit[]      @relation("Borrower")
+
+  createdAt        DateTime      @default(now())
+}
+
+model Product {
+  id          String      @id @default(uuid())
+  name        String
+  description String
+  price       Decimal     @db.Decimal(10, 2)
+  
+  // Le Seller est le propriétaire du produit
+  ownerId     String      
+  owner       User        @relation("UserProducts", fields: [ownerId], references: [id])
+  
+  orderItems  OrderItem[]
+}
+
+model Order {
+  id              String       @id @default(uuid())
+  totalAmount     Decimal      @db.Decimal(10, 2)
+  status          String       
+  shippingAddress String
+  note            String?
+
+  buyerId         String
+  buyer           User         @relation("BuyerOrders", fields: [buyerId], references: [id])
+
+  orderItems      OrderItem[]
+  transaction     Transaction?
+  
+  createdAt       DateTime     @default(now())
+}
+
+model OrderItem {
+  id               String   @id @default(uuid())
+  orderId          String
+  order            Order    @relation(fields: [orderId], references: [id])
+  
+  productId        String
+  product          Product  @relation(fields: [productId], references: [id])
+  
+  quantity         Int
+  unitPriceAtOrder Decimal @db.Decimal(10, 2)
+}
+
+model TrustProfile {
+  id            String       @id @default(uuid())
+  userId        String       @unique
+  user          User         @relation(fields: [userId], references: [id])
+  
+  idNumber      String?
+  trustScore    Float        @default(50.0)
+  isVerified    Boolean      @default(false)
+  cinImg        String?      
+  faceImg       String?      
+
+  devices       UserDevice[]
+  updatedAt     DateTime     @updatedAt
+}
+
+model UserDevice {
+  id                String       @id @default(uuid())
+  trustProfileId    String
+  trustProfile      TrustProfile @relation(fields: [trustProfileId], references: [id])
+  
+  deviceFingerprint String       
+  deviceName        String?
+  lastUsed          DateTime     @default(now())
+
+  @@unique([trustProfileId, deviceFingerprint])
+}
+model Credit {
+  id             String        @id @default(uuid())
+  limit          Decimal       @db.Decimal(10, 2)
+  currentBalance Decimal       @db.Decimal(10, 2) @default(0.0)
+
+  lenderId       String
+  lender         User          @relation("Lender", fields: [lenderId], references: [id])
+  
+  borrowerId     String
+  borrower       User          @relation("Borrower", fields: [borrowerId], references: [id])
+
+  transactions   Transaction[]
+}
+
+model Transaction {
+  id               String             @id @default(uuid())
+  orderId          String             @unique
+  order            Order              @relation(fields: [orderId], references: [id])
+  
+  amount           Decimal            @db.Decimal(10, 2)
+  status           EscrowState        @default(INITIATED)         
+  ocrConfidence    Float?
+  proofOfDelivery  String?            
+  paymentIntentId  String?            
+
+  creditId         String?
+  credit           Credit?            @relation(fields: [creditId], references: [id])
+
+  ledgerEntries    TransactionLedger[]
+  
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+}
+
+model TransactionLedger {
+  id             String      @id @default(uuid())
+  transactionId  String
+  transaction    Transaction @relation(fields: [transactionId], references: [id])
+  
+  amount         Decimal     @db.Decimal(10, 2)
+  previousStatus EscrowState
+  currentStatus  EscrowState
+  timestamp      DateTime    @default(now())
+  actorId        String      
+}
