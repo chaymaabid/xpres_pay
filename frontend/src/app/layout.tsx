@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { Providers } from './providers';
+import { TrustProvider } from '@/context/TrustContext';
+import SecurityModal from './components/SecurityModal';
 import './globals.css';
 import dynamic from 'next/dynamic';
 const inter = Inter({ subsets: ['latin'] });
@@ -17,8 +19,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={inter.className}>
         
         <Providers>
+          <TrustProvider>
           <NavBar/>
           {children}
+          <SecurityModal/>
+          </TrustProvider>
         </Providers>
       </body>
     </html>

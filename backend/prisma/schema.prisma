@@ -157,3 +157,14 @@ model TransactionLedger {
   timestamp      DateTime    @default(now())
   actorId        String      
 }
+
+model KycSession {
+  id          String   @id @default(uuid())
+  userId      String   
+  status      String   @default("PENDING") 
+  mode        String   
+  fullName    String?
+  idNumber    String?
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+}

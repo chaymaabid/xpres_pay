@@ -6,10 +6,18 @@ import {
   ResourceGuard,
   RoleGuard,
   AuthGuard,
+  PolicyEnforcementMode,
+  TokenValidation,
 } from 'nest-keycloak-connect';
 import { APP_GUARD } from '@nestjs/core';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import { KycModule } from './kyc/kyc.module';
+import { StorageModule } from './storage/storage.module';
+import { ProductsModule } from './products/products.module';
+import { RolesGuard } from './common/guards/roles.guard';
 
 @Module({
   imports: [
@@ -22,17 +30,28 @@ import { UsersModule } from './users/users.module';
         authServerUrl: cfg.get<string>('KEYCLOAK_URL')!,
         realm: cfg.get<string>('KEYCLOAK_REALM')!,
         clientId: cfg.get<string>('KEYCLOAK_CLIENT_ID')!,
-        secret: cfg.get<string>('KEYCLOAK_CLIENT_SECRET') || '',  // ← Fixed: provide default
+        secret: cfg.get<string>('KEYCLOAK_CLIENT_SECRET') || '', 
+        loglevels: ['verbose'],
+        tokenValidation: TokenValidation.OFFLINE,
+    
+    policyEnforcement: PolicyEnforcementMode.PERMISSIVE,
+        
       }),
     }),
 
     AuthModule,
     UsersModule,
+    KycModule,
+    StorageModule,
+    ProductsModule
+    
   ],
+  controllers: [AppController],
   providers: [
+    AppService,
     { provide: APP_GUARD, useClass: AuthGuard },
     { provide: APP_GUARD, useClass: ResourceGuard },
-    { provide: APP_GUARD, useClass: RoleGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
   ],
 })
 export class AppModule {}
