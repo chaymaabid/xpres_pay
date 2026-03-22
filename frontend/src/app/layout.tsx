@@ -20,7 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         
         <Providers>
           <TrustProvider>
-          <NavBar/>
+           <NavBar/>
           {children}
           <SecurityModal/>
           </TrustProvider>

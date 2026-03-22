@@ -84,7 +84,7 @@ function NavBar() {
   // Show loading state if session is loading
   if (status === 'loading') {
     return (
-      <header className="border-b border-gray-100 px-6 py-3 flex items-center justify-between">
+      <header className=" fixed w-full border-b border-gray-100 bg-white px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-[#2B6E44] rounded-lg flex items-center justify-center">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -100,7 +100,7 @@ function NavBar() {
   }
 
   return (
-    <header className="border-b border-gray-100 px-6 py-3 flex items-center justify-between">
+    <header className="fixed w-full border-b border-gray-100 bg-white px-6 py-3 flex items-center justify-between">
       <div className="flex items-center gap-2">
         <div className="w-8 h-8 bg-[#2B6E44] rounded-lg flex items-center justify-center">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">

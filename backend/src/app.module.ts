@@ -18,6 +18,9 @@ import { KycModule } from './kyc/kyc.module';
 import { StorageModule } from './storage/storage.module';
 import { ProductsModule } from './products/products.module';
 import { RolesGuard } from './common/guards/roles.guard';
+import { TransactionsModule } from './transactions/transactions.module';
+import { OrdersModule } from './orders/orders.module';
+import { OrderItemsModule } from './order-items/order-items.module';
 
 @Module({
   imports: [
@@ -43,7 +46,10 @@ import { RolesGuard } from './common/guards/roles.guard';
     UsersModule,
     KycModule,
     StorageModule,
-    ProductsModule
+    ProductsModule,
+    TransactionsModule,
+    OrdersModule,
+    OrderItemsModule
     
   ],
   controllers: [AppController],

@@ -1,7 +1,7 @@
 'use client';
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import verifiedApi from '@/lib/api';
+import verifiedApi from '@/lib/verifiedApi';
 
 const TrustContext = createContext({ hasProfile: false, isDeviceTrusted: false, loading: true, refresh: () => {} });
 

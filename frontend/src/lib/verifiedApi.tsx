@@ -39,4 +39,5 @@ verifiedApi.interceptors.response.use(
   }
 );
 
+
 export default verifiedApi;
