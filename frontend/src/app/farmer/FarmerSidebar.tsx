@@ -30,31 +30,31 @@ export default function FarmerSidebar() {
   const navigationItems = [
     {
       name: 'Home',
-      href: '/dashboard/farmer',
+      href: '/farmer',
       icon: <HomeIcon />,
       description: 'Dashboard overview',
     },
     {
       name: 'My Products',
-      href: '/dashboard/farmer/products',
+      href: '/farmer/products',
       icon: <ProductsIcon />,
       description: 'Manage your products',
     },
     {
       name: 'Product Catalog',
-      href: '/dashboard/farmer/catalog',
+      href: '/farmer/catalog',
       icon: <CatalogIcon />,
       description: 'Browse all products',
     },
     {
       name: 'Credit Line',
-      href: '/dashboard/farmer/credits',
+      href: '/farmer/credits',
       icon: <CreditIcon />,
       description: 'View credit status',
     },
     {
       name: 'Security Settings',
-      href: '/dashboard/farmer/security',
+      href: '/farmer/security',
       icon: <SecurityIcon />,
       description: 'Account security',
     },

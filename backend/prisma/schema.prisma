@@ -176,6 +176,8 @@ model KycSession {
   mode        String   
   fullName    String?
   idNumber    String?
+  deviceFingerprint String?
+  cinImage  String?
   expiresAt   DateTime
   createdAt   DateTime @default(now())
 }

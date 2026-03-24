@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { io } from 'socket.io-client';
 import { useSession } from 'next-auth/react'; 
+import FingerprintJS from '@fingerprintjs/fingerprintjs';
 
 export default function SecurityModal() {
   const { data: session, status: authStatus } = useSession(); 
@@ -29,15 +30,18 @@ export default function SecurityModal() {
     try {
       const mode = errorType === 'NO_TRUSTED_PROFILE_DETECTED' ? 'FULL' : 'REAUTH';
       console.log("Initializing KYC Session..."); 
-
+       const fp = await FingerprintJS.load();
+      const result = await fp.get();
+    
       const res = await fetch('https://p60m3x78-3001.euw.devtunnels.ms/api/v1/kyc/init', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.accessToken}` 
+          'Authorization': `Bearer ${session.accessToken}` ,
+          'x-device-fingerprint': result.visitorId
         },
         body: JSON.stringify({ 
-          userId: session.keycloakId, 
+          userKeycloackId: session.keycloakId, 
           mode 
         })
       });

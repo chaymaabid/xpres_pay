@@ -10,8 +10,8 @@ export default async function HomePage() {
   console.log(session?.user.role)
     console.log('**********************************************************')
   console.log(session?.expires)
-  if (session?.role === 'FARMER')   redirect('/dashboard/farmer');
-  if (session?.role === 'RETAILER') redirect('/dashboard/retailer');
+  if (session?.role === 'FARMER')   redirect('/farmer');
+  if (session?.role === 'RETAILER') redirect('/retailer');
   
   redirect('/auth');
 }

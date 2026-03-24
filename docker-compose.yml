@@ -55,9 +55,30 @@ services:
       - minio_data:/data
     command: server /data --console-address ":9001"
 
+  kyc-vision:
+    image: python:3.11-slim
+    container_name: kyc-vision
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - ./kyc-vision:/app
+      - kyc_pip_cache:/usr/local/lib/python3.11/site-packages
+    command: bash -c "apt-get update -qq && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 curl && pip install --no-cache-dir torch==2.2.2+cpu torchvision==0.17.2+cpu --index-url https://download.pytorch.org/whl/cpu && pip install --no-cache-dir -r /app/requirements.txt && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    ports:
+      - "8000:8000" 
+    networks:
+      - xprespay_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s          
+ 
 volumes:
   postgres_data:
   minio_data:
+  kyc_pip_cache:
 
 networks:
   xprespay_net:
