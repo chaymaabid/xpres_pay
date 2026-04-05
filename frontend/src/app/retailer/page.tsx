@@ -4,8 +4,7 @@ import { authOptions } from '../api/auth/[...nextauth]/route';
 
 export default async function RetailerDashboard() {
   const session = await getServerSession(authOptions);
-  if (!session)                      redirect('/auth');
-  if (session.role !== 'RETAILER')   redirect('/auth');
+  if (!session || session.role !== 'RETAILER')   redirect('/auth');
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">

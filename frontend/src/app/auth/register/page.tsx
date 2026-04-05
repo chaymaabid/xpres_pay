@@ -20,6 +20,7 @@ export default function RegisterPage() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
 
   useEffect(() => {
     if (!roleFromUrl) {
@@ -69,28 +70,29 @@ export default function RegisterPage() {
       }
 
     
-      const result = await signIn('keycloak', {
-       callbackUrl: '/',
-      });
+      setShowVerificationModal(true);
 
-      if (result?.error) {
-        
-        router.push('/auth?registered=true');
-      } else {
-        
-        const dashboardPath = formData.role === 'FARMER' ? '/dashboard/farmer' : '/dashboard/retailer';
-        router.push(dashboardPath);
-      }
+      
 
     } catch (err: any) {
       setError(err.message || 'Registration failed. Please try again.');
       setLoading(false);
     }
   };
-
+  const handleModalClose = () => {
+  setShowVerificationModal(false);
+  signIn('keycloak', { callbackUrl: '/' });
+};
   const roleName = formData.role === 'FARMER' ? 'Farmer ' : 'Retailer ';
 
   return (
+    <>
+    {showVerificationModal && (
+        <EmailVerificationModal
+          email={formData.email}
+          onClose={handleModalClose}
+        />
+      )}
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-12">
       <div className="w-full max-w-md">
         
@@ -235,6 +237,46 @@ export default function RegisterPage() {
           By signing up, you agree to our{' '}
           <a href="#" className="underline">Terms of Service</a> and{' '}
           <a href="#" className="underline">Privacy Policy</a>
+        </p>
+      </div>
+    </div>
+    </>
+  );
+}
+
+function EmailVerificationModal({ email, onClose }: { email: string; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+      <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
+        
+        {/* Icon */}
+        <div className="w-16 h-16 bg-[#2B6E44]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+            <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2z"
+              stroke="#2B6E44" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M22 6l-10 7L2 6"
+              stroke="#2B6E44" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+
+        <h2 className="text-xl font-bold text-gray-900 mb-2">Verify Your Email</h2>
+        <p className="text-gray-500 text-sm mb-1">We sent a verification link to:</p>
+        <p className="text-[#2B6E44] font-semibold text-sm mb-4">{email}</p>
+        <p className="text-gray-500 text-sm mb-6">
+          Please check your inbox and click the link to activate your account,
+          then come back to sign in.
+        </p>
+
+        {/* ✅ Triggers Keycloak login flow directly */}
+        <button
+          onClick={onClose}
+          className="w-full py-3 bg-[#2B6E44] hover:bg-[#1a4a2e] text-white font-medium rounded-lg transition-colors"
+        >
+          Go to Sign In
+        </button>
+
+        <p className="mt-4 text-xs text-gray-400">
+          Didn't receive the email? Check your spam folder.
         </p>
       </div>
     </div>

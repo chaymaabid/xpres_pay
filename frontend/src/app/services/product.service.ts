@@ -15,7 +15,15 @@ export interface Product {
   images: ProductImage[];
   stockAvailable: number;
 }
-
+export interface OwnerBasicInfo {
+  id: string;
+  email: string;
+  name: string;
+  trustScore: number;
+}
+export interface ProductMarket extends Product {
+  owner: OwnerBasicInfo;
+}
 export interface UpdateProductDto {
   price?: number;
   description?: string;
@@ -51,6 +59,10 @@ export const getMyProducts = async (): Promise<Product[]> => {
   return res.data;
 };
 
+export const getProducts=async(): Promise <ProductMarket[]>=>{
+  const res=await authApi.get("/api/v1/products")
+  return res.data;
+}
 // ── Update fields ───────────────────────────────────────────────────────────
 
 export const updateProduct = async (

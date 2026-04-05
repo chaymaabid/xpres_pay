@@ -73,7 +73,7 @@ export class AuthService {
         firstName: dto.firstName,
         lastName: dto.lastName,
         enabled: true,
-        emailVerified: true, 
+        emailVerified: false, 
         credentials: [
           {
             type: 'password',
@@ -109,10 +109,15 @@ export class AuthService {
 
       this.logger.log(`Assigned role ${dto.role} to user ${dto.email}`);
 
+      //send email verfication link 
+      await kc.users.sendVerifyEmail({
+      id: createdUser.id,
+      });
       // Create user in our database
       await this.usersService.create({
         keycloakId: keycloakUserId,
         email: dto.email,
+        name: dto.lastName,
         role: dto.role,
       });
 
@@ -146,7 +151,7 @@ export class AuthService {
    * Syncs Keycloak user after login
    */
   async syncUser(keycloakPayload: any) {
-    const { sub, email, realm_access } = keycloakPayload;
+    const { sub, email,name, realm_access } = keycloakPayload;
     const roles: string[] = realm_access?.roles ?? [];
 
     const role = roles.includes('FARMER')
@@ -165,6 +170,7 @@ export class AuthService {
     const newUser = await this.usersService.create({
       keycloakId: sub,
       email,
+      name,
       role: role as UserRole,
     });
 

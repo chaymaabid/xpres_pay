@@ -37,7 +37,6 @@ export class ProductsController {
         return this.productsService.update(id, dto, keycloakId);
     }
     @Get(':id/images/:imageId/url')
-    @Roles('FARMER')
     getImageUrl(
     @Param('id') productId: string,
     @Param('imageId') imageId: string,

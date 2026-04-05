@@ -5,5 +5,6 @@ export class CreateUserDto{
     keycloakId: string;
     @IsEmail()
     email: string;
+    name: string;
     role: UserRole;
 }

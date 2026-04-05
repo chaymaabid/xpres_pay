@@ -98,7 +98,6 @@ export default function FarmerSidebar() {
             })}
           </div>
         </nav>
-
        
       </div>
     </aside>

@@ -11,6 +11,7 @@ export class UsersService {
       data:{
         keycloakId: dto.keycloakId,
         email: dto.email,
+        name: dto.name,
         role: dto.role,
       }
     })

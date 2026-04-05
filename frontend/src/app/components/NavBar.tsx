@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { signIn, signOut, useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import TrustGate from './TrustGate';
-import path from 'path';
+import { useCartContext } from '@/context/CartContext';
 
 function NavBar() {
   const { data: session, status } = useSession();
@@ -12,6 +12,9 @@ function NavBar() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   let hoverTimeout: NodeJS.Timeout;
+
+  const {totalItems, toggleCart, hydrated}= useCartContext();
+  const isRetailer=session?.user?.role=="RETAILER";
 
   const handleLogin = () => {
     console.log(document.cookie);
@@ -66,7 +69,7 @@ function NavBar() {
     }, 300); // 300ms delay to allow moving to dropdown
   };
 
-  // Close dropdown when clicking outside
+  
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -127,6 +130,23 @@ function NavBar() {
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
         </button>
         </TrustGate>
+        {isRetailer && (
+          <button
+            onClick={toggleCart}
+            className="relative p-2 rounded-full hover:bg-gray-50 transition-colors"
+            aria-label="Open cart"
+          >
+            <svg className="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M7 4h-2l-1 2h2l3.6 7.59-1.35 2.45A2 2 0 0 0 10 19h9v-2h-8.42a.25.25 0 0 1-.22-.37L11.1 14h5.45a2 2 0 0 0 1.8-1.11l3.58-6.49A1 1 0 0 0 21 5H6.21l-.94-2zM7 20a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm10 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/>
+            </svg>
+            {/* Badge — shows total item count */}
+            {hydrated && totalItems > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-[#2B6E44] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                {totalItems > 99 ? '99+' : totalItems}
+              </span>
+            )}
+          </button>
+        )}
 
         {session ? (
           <div 

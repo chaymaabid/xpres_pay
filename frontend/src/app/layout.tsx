@@ -5,6 +5,8 @@ import { TrustProvider } from '@/context/TrustContext';
 import SecurityModal from './components/SecurityModal';
 import './globals.css';
 import dynamic from 'next/dynamic';
+import { CartProvider } from '@/context/CartContext';
+import CartDrawer from './retailer/market/componenets/CartDrawer';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
@@ -19,11 +21,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={inter.className}>
         
         <Providers>
+          <CartProvider>
           <TrustProvider>
            <NavBar/>
+           <CartDrawer />
           {children}
           <SecurityModal/>
           </TrustProvider>
+          </CartProvider>
         </Providers>
       </body>
     </html>

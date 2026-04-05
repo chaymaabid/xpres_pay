@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Product } from '@/app/services/product.service';
-import PresignedImage from './PresignedImage';
+import PresignedImage from '../../../components/PresignedProductImage';
 import ProductDetailsModal from './ProductDetailsModal';
 import ProductEditModal from './ProductEditModal';
 

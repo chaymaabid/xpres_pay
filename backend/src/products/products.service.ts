@@ -60,11 +60,29 @@ export class ProductsService {
             });
     }
     async findAll() {
-        return this.prisma.product.findMany({
-        include: {
-            owner: true,
-        },
+        const products = await this.prisma.product.findMany({
+            include: {
+            owner: {
+                include: {
+                trustProfile: {
+                    select: {
+                    trustScore: true, 
+                    },
+                },
+                },
+            },
+            images: true,
+            },
         });
+        return products.map((product) => ({
+            ...product,
+            owner: {
+            ...product.owner,
+            trustScore: product.owner.trustProfile?.trustScore ?? 0,
+            trustProfile: undefined,
+            name: product.owner.name
+            },
+        }));
     }
     async findOne(id: string, prisma: Prisma.TransactionClient | PrismaService = this.prisma) {
 
@@ -72,6 +90,7 @@ export class ProductsService {
         where: { id },
         include: {
             owner: true,
+            images:true,
         },
         });
 
