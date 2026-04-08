@@ -32,53 +32,51 @@ export default function RegisterPage() {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
+ const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setError('');
 
-    // Validation
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      return;
+  if (formData.password !== formData.confirmPassword) {
+    setError('Passwords do not match');
+    return;
+  }
+  if (formData.password.length < 6) {
+    setError('Password must be at least 6 characters');
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: formData.email,
+        password: formData.password,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        role: formData.role,
+      }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || 'Registration failed');
+
+    // ── FARMER: redirect to Stripe onboarding immediately ──
+    if (formData.role === 'FARMER' && data.stripeOnboardingUrl) {
+      window.location.href = data.stripeOnboardingUrl;
+      return; // stop here, Stripe takes over
     }
 
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters');
-      return;
-    }
+    // ── RETAILER (or fallback): show email verification modal ──
+    setShowVerificationModal(true);
 
-    setLoading(true);
-
-    try {
-      
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          role: formData.role,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Registration failed');
-      }
-
-    
-      setShowVerificationModal(true);
-
-      
-
-    } catch (err: any) {
-      setError(err.message || 'Registration failed. Please try again.');
-      setLoading(false);
-    }
-  };
+  } catch (err: any) {
+    setError(err.message || 'Registration failed. Please try again.');
+    setLoading(false);
+  }
+};
   const handleModalClose = () => {
   setShowVerificationModal(false);
   signIn('keycloak', { callbackUrl: '/' });
@@ -93,11 +91,11 @@ export default function RegisterPage() {
           onClose={handleModalClose}
         />
       )}
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-12">
+    <div className="p-8 min-h-screen flex items-center justify-center bg-gray-50 px-4 py-12">
       <div className="w-full max-w-md">
         
         {/* Logo */}
-        <div className="text-center mb-8">
+        <div className=" mt-6 text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-4">
             <div className="w-10 h-10 bg-[#2B6E44] rounded-lg flex items-center justify-center">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
@@ -215,7 +213,7 @@ export default function RegisterPage() {
                   Creating Account...
                 </span>
               ) : (
-                'Create Account'
+                formData.role === 'FARMER' ? 'Pass to Stripe Onbording' : 'Create Account '
               )}
             </button>
           </form>

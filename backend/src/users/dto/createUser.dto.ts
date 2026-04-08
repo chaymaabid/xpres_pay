@@ -1,5 +1,5 @@
 import { UserRole } from "@prisma/client";
-import { IsEmail, IsString } from "class-validator";
+import { IsEmail, IsOptional, IsString } from "class-validator";
 export class CreateUserDto{
     @IsString()
     keycloakId: string;
@@ -7,4 +7,7 @@ export class CreateUserDto{
     email: string;
     name: string;
     role: UserRole;
+    @IsOptional()
+    @IsString()
+    stripeAccountId?: string | null;
 }

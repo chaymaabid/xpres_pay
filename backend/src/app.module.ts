@@ -21,6 +21,7 @@ import { RolesGuard } from './common/guards/roles.guard';
 import { TransactionsModule } from './transactions/transactions.module';
 import { OrdersModule } from './orders/orders.module';
 import { OrderItemsModule } from './order-items/order-items.module';
+import { StripeModule } from './stripe/stripe.module';
 
 @Module({
   imports: [
@@ -49,7 +50,8 @@ import { OrderItemsModule } from './order-items/order-items.module';
     ProductsModule,
     TransactionsModule,
     OrdersModule,
-    OrderItemsModule
+    OrderItemsModule,
+    StripeModule
     
   ],
   controllers: [AppController],

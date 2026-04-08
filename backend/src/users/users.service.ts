@@ -13,6 +13,7 @@ export class UsersService {
         email: dto.email,
         name: dto.name,
         role: dto.role,
+        stripeAccountId: dto.stripeAccountId?? null,
       }
     })
   }
