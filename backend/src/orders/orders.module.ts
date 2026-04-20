@@ -4,10 +4,13 @@ import { OrdersService } from './orders.service';
 import { UsersModule } from 'src/users/users.module';
 import { ProductsModule } from 'src/products/products.module';
 import { OrderItemsModule } from 'src/order-items/order-items.module';
+import { StripeModule } from 'src/stripe/stripe.module';
+import { StripeWebhookController } from './stripe-webhooks.controller';
+import { TransactionLedgerModule } from 'src/transaction-ledger/transaction-ledger.module';
 
 @Module({
-  controllers: [OrdersController],
+  controllers: [OrdersController, StripeWebhookController],
   providers: [OrdersService],
-  imports: [UsersModule, ProductsModule, OrderItemsModule]
+  imports: [UsersModule, ProductsModule, OrderItemsModule, StripeModule, TransactionLedgerModule]
 })
 export class OrdersModule {}

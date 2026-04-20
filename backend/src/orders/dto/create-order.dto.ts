@@ -31,4 +31,6 @@ export class CreateOrderDto {
   shippingAddress:string;
   @IsString()
   note:string;
+
+  total: number;
 }

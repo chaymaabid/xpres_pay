@@ -10,6 +10,7 @@ export type CartItem = {
   farmerId: string;
   farmerName: string;
   imageId?: string;
+  stockAvailable?: number;
 };
 
 export type FarmerGroup = {

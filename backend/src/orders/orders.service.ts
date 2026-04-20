@@ -1,68 +1,213 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable ,Inject, BadRequestException, NotFoundException, ForbiddenException} from '@nestjs/common';
+import Stripe from 'stripe';
+import { PrismaService } from '../prisma/prisma.service';
+import { UsersService } from '../users/users.service';
+import { ProductsService } from '../products/products.service';
+import { OrderItemsService } from '../order-items/order-items.service';
 import { CreateOrderDto } from './dto/create-order.dto';
-import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateOrderItemDto } from 'src/order-items/dto/create-order-items';
-import { UsersService } from 'src/users/users.service';
-import { ProductsService } from 'src/products/products.service';
-import { OrderItemsService } from 'src/order-items/order-items.service';
-@Injectable()
-export class OrdersService {
-    constructor(private prisma: PrismaService,
-        private usersService: UsersService,
-        private productService:ProductsService,
-        private orderItemsService: OrderItemsService
-    ) {}
-    async Order(dto: CreateOrderDto,keycloakId:string) {
-    const buyer= await this.usersService.findByKeycloakId(keycloakId);
-    if (!buyer) {
-            throw new Error("buyer not found");
-        }
-    return this.prisma.$transaction(async (tx) => {
+import { TransactionLedgerService } from 'src/transaction-ledger/transaction-ledger.service';
+import { contains } from 'class-validator';
 
-        ///create OrderItems list from list of products
-        let total = 0;
-        const orderItems : CreateOrderItemDto [] =[]  ;
-        const items=dto.items;
-        for (const item of items) {
-            const product = await this.productService.findOne(item.productId,tx);
-            const price = product.price.toNumber();
-            total += price * item.quantity;
-
-            orderItems.push({
-                productId: product.id,
-                quantity: item.quantity,
-                unitPriceAtOrder:price,
-            });
-        }
-
-        // create order
-        const order = await tx.order.create({
-            data: {
-                buyer:{
-                    connect:{id:buyer.id}
-                },
-                totalAmount:total,
-                status: dto.status,
-                shippingAddress:dto.shippingAddress,
-                note: dto.note
-            }
-        });
-
-        // create all the orderItem related to this order
-        await this.orderItemsService.createManyOrderItems(orderItems, order.id,tx)
-
-        await tx.transaction.create({
-            data: {
-        orderId: order.id,
-        amount: total,
-        status: "INITIATED"
-      }
-    });
-
-    return order;
-  });
-
+interface FindAllParams {
+  buyerId: string;
+  page: number;
+  limit: number;
+  status?: string;
+  search?: string;
 }
 
-    
+@Injectable()
+export class OrdersService {
+ 
+  constructor(
+    @Inject('STRIPE_CLIENT') private readonly stripe: Stripe,
+    private readonly prisma: PrismaService,
+    private readonly usersService: UsersService,
+    private readonly productService: ProductsService,
+    private readonly orderItemsService: OrderItemsService,
+    private readonly ledger: TransactionLedgerService
+  ) {}
+ 
+  async Order(dto: CreateOrderDto, keycloakId: string) {
+    const buyer = await this.usersService.findByKeycloakId(keycloakId);
+    if (!buyer) throw new Error('Buyer not found');
+ 
+    // check available quantity first
+    for (const item of dto.items) {
+      const product = await this.prisma.product.findUnique({
+        where: { id: item.productId },
+        select: { id: true, name: true, stockAvailable: true },
+      });
+ 
+      if (!product) {
+        throw new BadRequestException(`Product ${item.productId} not found`);
+      }
+      if (product.stockAvailable < item.quantity) {
+        throw new BadRequestException(
+          `"${product.name}" only has ${product.stockAvailable} unit(s) available, but you requested ${item.quantity}.`,
+        );
+      }
+    }
+    return this.prisma.$transaction(async (tx) => {
+      // ── 1. Compute total from products ──────────────────────────────────
+      let subtotal = 0;
+      const orderItems :CreateOrderItemDto [] =[];
+ 
+      for (const item of dto.items) {
+        const updated = await tx.product.updateMany({
+        where: {
+          id: item.productId,
+          stockAvailable: { gte: item.quantity },
+        },
+        data: {
+          stockAvailable: { decrement: item.quantity },
+        },
+        });
+
+      if (updated.count === 0) {
+        throw new BadRequestException('Not enough stock');
+      }
+
+      const product = await tx.product.findUnique({
+        where: { id: item.productId },
+      });
+
+      const price = product!.price.toNumber();
+      subtotal += price * item.quantity;
+
+      orderItems.push({
+        productId: product!.id,
+        quantity: item.quantity,
+        unitPriceAtOrder: price,
+      });
+      }
+      const tax = parseFloat((subtotal * 0.085).toFixed(2));
+      const total= subtotal+tax
+      // ── 2. Create Stripe PaymentIntent (money stays on platform) ────────
+      //    No transfer_data → funds go to platform account (escrow)
+      const paymentIntent = await this.stripe.paymentIntents.create({
+        amount: Math.round(total * 100),   
+        currency: 'usd',
+        // Do NOT add transfer_data here — funds stay in platform escrow
+        // until you manually transfer after delivery confirmation
+        metadata: {
+          buyerId: buyer.id,
+          buyerEmail: buyer.email ?? '',
+        },
+      });
+ 
+      // ── 3. Create Order with paymentIntentId ────────────────────────────
+      const order = await tx.order.create({
+        data: {
+          buyer: { connect: { id: buyer.id } },
+          totalAmount: total,
+          status: 'pending_payment',
+          shippingAddress: dto.shippingAddress,
+          note: dto.note,
+          
+        },
+      });
+ 
+      // ── 4. Create order items ───────────────────────────────────────────
+      await this.orderItemsService.createManyOrderItems(orderItems, order.id, tx);
+ 
+      // ── 5. Create transaction record ────────────────────────────────────
+      const txRecord= await tx.transaction.create({
+        data: {
+          orderId: order.id,
+          amount: total,
+          status: 'INITIATED',
+          paymentIntentId: paymentIntent.id, 
+        },
+      });
+      await tx.transactionLedger.create({
+        data:{
+          transactionId:txRecord.id,
+          amount:total,
+          previousStatus: 'INITIATED',
+          currentStatus: 'INITIATED',
+          actorId: buyer.id,
+        }
+      });
+ 
+      // ── 6. Return orderId + clientSecret to frontend ────────────────────
+      return {
+        orderId: order.id,
+        clientSecret: paymentIntent.client_secret,
+      };
+    });
+  }
+
+  async findAll({ buyerId, page, limit, status, search }: FindAllParams) {
+    const skip = (page - 1) * limit;
+    const buyer= await this.prisma.user.findUnique({where: { id:buyerId }})
+    const idBuyer=buyer?.id
+    const where: any = { idBuyer };
+    if (status) {
+      where.transaction = {
+        is: {
+          status,
+        },
+      };
+    }
+    if (search) {
+      where.OR = [
+        { id: { contains: search, mode: 'insensitive' } },
+        { orderItems: { some: { product: { name: { contains: search, mode: 'insensitive' } } } } },
+         { orderItems: { some: { product: { owner: {name: {  contains: search,  mode: 'insensitive',},} } } } },
+      ];
+    }
+ 
+    const [orders, total] = await Promise.all([
+      this.prisma.order.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          orderItems: {
+            include: { product: { select: { id: true, name: true, owner: { select: { id: true, name: true } } } } },
+          },
+          transaction: { select: { status: true, amount: true } },
+        },
+      }),
+      this.prisma.order.count({ where }),
+    ]);
+ 
+    return {
+      data: orders,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
+  }
+
+  async findOne(id: string, keycloackId: string) {
+    const user=await this.usersService.findByKeycloakId(keycloackId);
+    const order = await this.prisma.order.findUnique({
+      where: { id },
+      include: {
+        buyer: { select: { id: true, name: true, email: true } },
+        orderItems: {
+          include: {
+            product: {
+              include: {
+                images: { take: 1 },
+                owner: { select: { id: true, name: true } },
+              },
+            },
+          },
+        },
+        transaction: {
+          include: {
+            ledgerEntries: { orderBy: { timestamp: 'asc' } },
+          },
+        },
+      },
+    });
+ 
+    if (!order) throw new NotFoundException('Order not found');
+    if (order.buyerId !== user?.id) throw new ForbiddenException();
+ 
+    return order;
+  }
 }

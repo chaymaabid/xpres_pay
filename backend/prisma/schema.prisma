@@ -23,7 +23,7 @@ enum EscrowState {
   INITIATED
   LOCKED
   DELIVERED
-  REALISED
+  RELEASED
 }
 
 model User {
@@ -95,6 +95,17 @@ model Transaction {
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
 }
+model TransactionLedger {
+  id             String      @id @default(uuid())
+  transactionId  String
+  transaction    Transaction @relation(fields: [transactionId], references: [id])
+  
+  amount         Decimal     @db.Decimal(10, 2)
+  previousStatus EscrowState
+  currentStatus  EscrowState
+  timestamp      DateTime    @default(now())
+  actorId        String      
+}
 model OrderItem {
   id               String   @id @default(uuid())
   orderId          String
@@ -149,17 +160,7 @@ model Credit {
 
 
 
-model TransactionLedger {
-  id             String      @id @default(uuid())
-  transactionId  String
-  transaction    Transaction @relation(fields: [transactionId], references: [id])
-  
-  amount         Decimal     @db.Decimal(10, 2)
-  previousStatus EscrowState
-  currentStatus  EscrowState
-  timestamp      DateTime    @default(now())
-  actorId        String      
-}
+
 model ProductImage {
   id        String   @id @default(uuid())
 

@@ -21,6 +21,7 @@ export default function ProductCard({ product}: { product: ProductMarket}) {
       farmerId: product.owner.id,
       farmerName: product.owner.name,
       imageId: randomImage?.id,
+      stockAvailable:product.stockAvailable,
     });
     openCart();
   };

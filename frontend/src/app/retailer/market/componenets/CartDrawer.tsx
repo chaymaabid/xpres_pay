@@ -3,7 +3,8 @@ import React from 'react';
 import { useCartContext } from '@/context/CartContext';
 import { FarmerGroup } from '@/hooks/useCart';
 import PresignedImage from '@/app/components/PresignedProductImage';
-
+import { useRouter } from 'next/navigation';
+import { CheckoutGroup } from '@/services/order.service';
 export default function CartDrawer() {
   const {
     isOpen,
@@ -15,12 +16,31 @@ export default function CartDrawer() {
     clearFarmerCart,
   } = useCartContext();
 
-  // ── Handle "Commander" (place order) for one farmer group ──────────────────
+  const router = useRouter();
+
   const handleOrder = (group: FarmerGroup) => {
-    // TODO: wire to your order API
-    console.log('Ordering from', group.farmerName, group.items);
-    clearFarmerCart(group.farmerId);
+  // 1. Serialize the farmer group into sessionStorage
+  
+  const checkoutGroup: CheckoutGroup = {
+    farmerId: group.farmerId,
+    farmerName: group.farmerName,
+    items: group.items.map(i => ({
+      productId: i.productId,
+      productName: i.productName,
+      price: i.price,
+      quantity: i.quantity,
+      imageId: i.imageId,
+      stockAvailable:i.stockAvailable,
+    })),
   };
+  sessionStorage.setItem('checkout_group', JSON.stringify(checkoutGroup));
+ 
+  // 2. Close the cart drawer
+  closeCart();
+ 
+  // 3. Navigate to checkout
+  router.push('/retailer/checkout');
+} ;
 
   return (
     <>
@@ -196,6 +216,7 @@ function FarmerCard({
                 </span>
                 <button
                   onClick={() => onUpdateQty(item.productId, item.quantity + 1)}
+                  disabled={item.stockAvailable!== undefined && item.quantity>=item.stockAvailable}
                   className="w-5 h-5 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors text-gray-500 text-xs font-bold"
                 >
                   +
