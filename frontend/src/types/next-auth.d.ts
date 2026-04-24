@@ -21,6 +21,7 @@ declare module 'next-auth/jwt' {
     accessToken?: string;
     idToken?:string;
     refreshToken?: string;
+    accessTokenExpires?: number;
     expiresAt?: number;
     role?: string;
     keycloakId?: string;

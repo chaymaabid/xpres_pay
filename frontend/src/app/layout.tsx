@@ -7,6 +7,8 @@ import './globals.css';
 import dynamic from 'next/dynamic';
 import { CartProvider } from '@/context/CartContext';
 import CartDrawer from './retailer/market/componenets/CartDrawer';
+import { signOut, useSession } from 'next-auth/react';
+import { useEffect } from 'react';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {

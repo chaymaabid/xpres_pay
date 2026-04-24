@@ -28,6 +28,7 @@ export interface OrderListItem {
   id: string;
   totalAmount: string;
   createdAt: string;
+  buyer: { id: string; name: string; email: string };
   orderItems: {
     product: {
       id: string;
@@ -38,6 +39,7 @@ export interface OrderListItem {
   transaction: {
     status: EscrowState;
     amount: string;
+    proofOfDelivery:string | null;
   } | null;
 }
 export interface OrderDetail {
@@ -64,6 +66,7 @@ export interface OrderDetail {
     id: string;
     amount: string;
     status: EscrowState;
+    proofOfDelivery:string;
     ledgerEntries: {
       id: string;
       amount: string;

@@ -9,13 +9,7 @@ import { CreateOrderItemDto } from 'src/order-items/dto/create-order-items';
 import { TransactionLedgerService } from 'src/transaction-ledger/transaction-ledger.service';
 import { contains } from 'class-validator';
 
-interface FindAllParams {
-  buyerId: string;
-  page: number;
-  limit: number;
-  status?: string;
-  search?: string;
-}
+
 
 @Injectable()
 export class OrdersService {
@@ -138,12 +132,41 @@ export class OrdersService {
       };
     });
   }
+  async findAllByRole({
+  role,
+  userId,
+  page,
+  limit,
+  status,
+  search,
+}: any) {
+  if (role === 'RETAILER') {
+    return this.RetailerfindAll({
+      buyerId: userId,
+      page,
+      limit,
+      status,
+      search,
+    });
+  }
 
-  async findAll({ buyerId, page, limit, status, search }: FindAllParams) {
+  if (role === 'FARMER') {
+    return this.farmerfindAll({
+      farmerId: userId,
+      page,
+      limit,
+      status,
+      search,
+    });
+  }
+
+  throw new ForbiddenException('Invalid role');
+}
+  async RetailerfindAll({ buyerId, page, limit, status, search }) {
     const skip = (page - 1) * limit;
-    const buyer= await this.prisma.user.findUnique({where: { id:buyerId }})
+    const buyer= await this.usersService.findByKeycloakId(buyerId);
     const idBuyer=buyer?.id
-    const where: any = { idBuyer };
+    const where: any = { buyerId:idBuyer };
     if (status) {
       where.transaction = {
         is: {
@@ -166,10 +189,72 @@ export class OrdersService {
         take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
+          buyer: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
           orderItems: {
             include: { product: { select: { id: true, name: true, owner: { select: { id: true, name: true } } } } },
           },
-          transaction: { select: { status: true, amount: true } },
+          transaction: { select: { status: true, amount: true, proofOfDelivery:true } },
+        },
+      }),
+      this.prisma.order.count({ where }),
+    ]);
+ 
+    return {
+      data: orders,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
+  }
+  async farmerfindAll({ farmerId, page, limit, status, search }) {
+    const skip = (page - 1) * limit;
+    const farmer= await this.usersService.findByKeycloakId(farmerId);
+    const where: any = {
+    orderItems: {
+      some: {
+        product: {
+          ownerId: farmer?.id,
+        },
+      },
+    },
+  };
+    if (status) {
+      where.transaction = {
+        is: {
+          status,
+        },
+      };
+    }
+    if (search) {
+      where.OR = [
+        { id: { contains: search, mode: 'insensitive' } },
+        { orderItems: { some: { product: { name: { contains: search, mode: 'insensitive' } } } } },
+         { orderItems: { some: { product: { owner: {name: {  contains: search,  mode: 'insensitive',},} } } } },
+      ];
+    }
+ 
+    const [orders, total] = await Promise.all([
+      this.prisma.order.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          buyer: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          orderItems: {
+            include: { product: { select: { id: true, name: true, owner: { select: { id: true, name: true } } } } },
+          },
+          transaction: { select: { status: true, amount: true, proofOfDelivery:true } },
         },
       }),
       this.prisma.order.count({ where }),
@@ -206,8 +291,52 @@ export class OrdersService {
     });
  
     if (!order) throw new NotFoundException('Order not found');
-    if (order.buyerId !== user?.id) throw new ForbiddenException();
+    if (order.buyerId !== user?.id && !(order.orderItems.some((o)=>o.product.ownerId==user?.id))) throw new ForbiddenException();
  
     return order;
+  }
+
+  async getFarmerEscrows(keycloakId: string) {
+    const farmer = await this.usersService.findByKeycloakId(keycloakId);
+    if (!farmer) throw new BadRequestException('Farmer not found');
+    // Get all orders related to that farmer with transaction status LOCKED
+    const orders = await this.prisma.order.findMany({
+      where: {
+        orderItems: {
+          some: {
+            product: { ownerId: farmer.id },
+          },
+        },
+        transaction: {
+          status: 'LOCKED',
+        },
+      },
+      include: {
+        buyer: {
+          select: { id: true, name: true, email: true },
+        },
+        transaction: {
+          select: {
+            id: true,
+            status: true,
+            amount: true,
+            createdAt: true,
+          },
+        },
+        orderItems: {
+          where: {
+            product: { ownerId: farmer.id },  // only this farmer's items
+          },
+          include: {
+            product: {
+              select: { id: true, name: true, price: true },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+ 
+    return orders;
   }
 }

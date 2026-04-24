@@ -32,7 +32,11 @@ export class RolesGuard implements CanActivate {
       throw new ForbiddenException('Authentication required');
     }
 
-    const userRoles: string[] = user.roles || [];
+    const userRoles: string[] = [
+      ...(Array.isArray(user.roles) ? user.roles : []),
+      ...(Array.isArray(user.realm_access?.roles) ? user.realm_access.roles : []),
+    ];
+
     
     this.logger.verbose(`Required roles: ${requiredRoles.join(', ')}`);
     this.logger.verbose(`User has roles: ${userRoles.join(', ')}`);

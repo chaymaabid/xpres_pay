@@ -69,9 +69,9 @@ const { url: podUrl, loadingpod } = usePodUrl(
   const currentStepIndex = currentStatus ? LEDGER_STEPS.indexOf(currentStatus) : -1;
   const isReleased = currentStatus === 'RELEASED';
   return (
-    <div className="p-6 pt-8 max-w-6xl mx-auto">
+    <div className="p-6 pt-16 max-w-6xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <Link href="/retailer/orders" className="text-sm text-gray-400 hover:text-gray-600 flex items-center gap-1">
+        <Link href="/farmer/orders" className="text-sm text-gray-400 hover:text-gray-600 flex items-center gap-1">
           ← Back to Orders
         </Link>
         <span className="text-gray-200">|</span>

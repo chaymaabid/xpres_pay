@@ -51,3 +51,31 @@ export function usePresignedUrl(productId: string, imageId: string) {
 
   return { url, loading, error };
 }
+export function usePodUrl(transactionId?: string) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [loadingpod, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!transactionId) return;
+
+    let cancelled = false;
+    setLoading(true);
+
+    authApi
+      .get<{ url: string }>(
+        `/api/v1/transactions/${transactionId}/pod-url`
+      )
+      .then((res) => {
+        if (!cancelled) setUrl(res.data.url);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [transactionId]);
+
+  return { url, loadingpod };
+}

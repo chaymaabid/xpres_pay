@@ -60,7 +60,6 @@ import { TransactionLedgerModule } from './transaction-ledger/transaction-ledger
   providers: [
     AppService,
     { provide: APP_GUARD, useClass: AuthGuard },
-    { provide: APP_GUARD, useClass: ResourceGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
 })

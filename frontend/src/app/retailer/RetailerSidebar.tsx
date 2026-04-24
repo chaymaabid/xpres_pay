@@ -14,13 +14,13 @@ export default function RetailerSidebar() {
     },
     {
         name: 'Catalog',
-        href: 'retailer/market',
+        href: '/retailer/market',
         icon: <CatalogIcon/>,
         description: 'market',
     },
     {
         name: 'Orders',
-        href: 'retailer/orders',
+        href: '/retailer/orders',
         icon: <OrdersIcon/>,
         description: 'orders',  
     }
