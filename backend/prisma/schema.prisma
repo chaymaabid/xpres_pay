@@ -81,11 +81,14 @@ model Transaction {
   orderId          String             @unique
   order            Order              @relation(fields: [orderId], references: [id])
   
-  amount           Decimal            @db.Decimal(10, 2)
+  orderAmount      Decimal @default(0)     @db.Decimal(10, 2) 
+  platformFee      Decimal @default(0)     @db.Decimal(10, 2)
+  totalPaid        Decimal @default(0)     @db.Decimal(10, 2)
   status           EscrowState        @default(INITIATED)         
   ocrConfidence    Float?
   proofOfDelivery  String?            
-  paymentIntentId  String?            
+  paymentIntentId  String?   
+  transferId       String?         
 
   creditId         String?
   credit           Credit?            @relation(fields: [creditId], references: [id])

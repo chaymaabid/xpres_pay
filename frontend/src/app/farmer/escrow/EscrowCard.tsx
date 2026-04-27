@@ -14,7 +14,7 @@ export default function EscrowCard({
   const [modalOpen, setModalOpen] = useState(false);
 
   const shortId    = order.id.replace(/-/g, '').substring(0, 8).toUpperCase();
-  const amount     = Number(order.transaction.amount);
+  const amount     = Number(order.transaction.orderAmount);
   const createdAt  = new Date(order.createdAt).toLocaleDateString('en-US', {
     month: 'short', day: 'numeric', year: 'numeric',
   });
@@ -62,7 +62,7 @@ export default function EscrowCard({
           <div className="bg-amber-50 rounded-xl px-4 py-3 flex items-center justify-between border border-amber-100">
             <div>
               <p className="text-[10px] text-amber-600 uppercase tracking-widest font-semibold mb-0.5">Funds Locked</p>
-              <p className="text-2xl font-bold text-gray-900">${(Number(amount)/1.085).toFixed(2)}</p>
+              <p className="text-2xl font-bold text-gray-900">${amount}</p>
             </div>
             <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
               <svg className="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">

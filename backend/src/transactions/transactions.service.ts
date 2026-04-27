@@ -102,7 +102,7 @@ export class TransactionsService {
 
     // ── Stripe transfer: platform → farmer connected account ──────────────
     let transfer: Stripe.Transfer;
-    const subtotal = Number(transaction.amount) / 1.085
+    const subtotal = Number(transaction.orderAmount)
     try {
       transfer = await this.stripe.transfers.create({
         amount:     subtotal * 100, // cents
@@ -119,12 +119,21 @@ export class TransactionsService {
         `Stripe transfer failed: ${err.message}`,
       );
     }
-   await this.ledger.release(orderId);
-
+    this.prisma.$transaction(async (tx) => {
+      await this.ledger.release(orderId,undefined,tx);
+      await tx.transaction.update({
+        where: {
+          orderId:orderId,
+        },
+        data:{
+          transferId:transfer.id
+        }
+    })
+    });
     return {
       success:    true,
       transferId: transfer.id,
-      amount:     Number(transaction.amount),
+      amount:     Number(transaction.orderAmount),
       farmerId:   farmer.id,
     };
   }
@@ -194,4 +203,5 @@ export class TransactionsService {
 
   return { url };
 }
+
 }

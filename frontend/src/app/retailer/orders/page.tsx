@@ -118,7 +118,7 @@ export default function OrdersPage() {
                     <td className="px-6 py-4 font-medium text-gray-900">{farmers || '—'}</td>
                     <td className="px-6 py-4 text-gray-500">{order.orderItems.length} items</td>
                     <td className="px-6 py-4 font-bold text-[#2B6E44]">
-                      ${Number(order.totalAmount).toFixed(2)}
+                      ${Number(order.transaction?.totalPaid).toFixed(2)}
                     </td>
                     <td className="px-6 py-4">
                       {badge ? (

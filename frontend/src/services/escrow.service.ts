@@ -8,7 +8,7 @@ export type EscrowOrder = {
   shippingAddress: string;
   createdAt: string;
   buyer: { id: string; name: string; email: string };
-  transaction: { id: string; status: string; amount: number; createdAt: string };
+  transaction: { id: string; status: string; orderAmount: number; createdAt: string };
   orderItems: {
     id: string;
     quantity: number;

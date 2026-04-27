@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "Transaction" ADD COLUMN     "orderAmount" DECIMAL(10,2) NOT NULL DEFAULT 0,
+ADD COLUMN     "platformFee" DECIMAL(10,2) NOT NULL DEFAULT 0,
+ADD COLUMN     "totalPaid" DECIMAL(10,2) NOT NULL DEFAULT 0,
+ADD COLUMN     "transferId" TEXT;

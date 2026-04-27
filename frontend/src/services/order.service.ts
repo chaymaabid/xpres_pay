@@ -38,7 +38,8 @@ export interface OrderListItem {
   }[];
   transaction: {
     status: EscrowState;
-    amount: string;
+    orderAmount: string;
+    totalPaid:string;
     proofOfDelivery:string | null;
   } | null;
 }
@@ -91,7 +92,7 @@ export type CreateOrderResponse = {
 // Computed totals helper
 export function computeTotals(items: CheckoutItem[]) {
   const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
-  const tax = parseFloat((subtotal * 0.085).toFixed(2));  // 8.5%
+  const tax = +(subtotal * 0.05).toFixed(2); //5% fees 
   const shipping = 0;                                      // FREE
   const total = subtotal + tax + shipping;
   return { subtotal, tax, shipping, total };

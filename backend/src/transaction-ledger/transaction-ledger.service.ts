@@ -47,13 +47,18 @@ export class TransactionLedgerService {
             `Transition from ${record.status} to ${next} is not permitted.`,
         );
         }
- 
+        let amount=0;
+        if (next=='LOCKED'||next=='DELIVERED')
+          amount=record.totalPaid;
+        else
+          if (next=='RELEASED')
+            amount=record.orderAmount;
         // 4. Write ledger entry + update transaction state atomically
         const execute = async (prisma: any) => {
         await prisma.transactionLedger.create({
         data: {
             transactionId: record.id,
-            amount: record.amount,
+            amount:amount,
             previousStatus: record.status,
             currentStatus: next,
             actorId,

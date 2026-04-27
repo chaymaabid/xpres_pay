@@ -7,6 +7,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Roles } from '../common/decorators/roles.decorator';
 import { TransactionsService } from './transactions.service';
+import { Public } from 'nest-keycloak-connect';
 
 @Controller('transactions')
 export class TransactionsController {
@@ -45,4 +46,5 @@ export class TransactionsController {
   async getPodUrl(@Param('id') id: string) {
     return this.transactionsService.getPodUrl(id);
   }
+
 }

@@ -76,12 +76,13 @@ export class OrdersService {
         unitPriceAtOrder: price,
       });
       }
-      const tax = parseFloat((subtotal * 0.085).toFixed(2));
+      
+      const tax = parseFloat((subtotal * 0.05).toFixed(2));
       const total= subtotal+tax
       // ── 2. Create Stripe PaymentIntent (money stays on platform) ────────
       //    No transfer_data → funds go to platform account (escrow)
       const paymentIntent = await this.stripe.paymentIntents.create({
-        amount: Math.round(total * 100),   
+        amount: total * 100,   
         currency: 'usd',
         // Do NOT add transfer_data here — funds stay in platform escrow
         // until you manually transfer after delivery confirmation
@@ -95,7 +96,7 @@ export class OrdersService {
       const order = await tx.order.create({
         data: {
           buyer: { connect: { id: buyer.id } },
-          totalAmount: total,
+          totalAmount: subtotal,
           status: 'pending_payment',
           shippingAddress: dto.shippingAddress,
           note: dto.note,
@@ -110,7 +111,9 @@ export class OrdersService {
       const txRecord= await tx.transaction.create({
         data: {
           orderId: order.id,
-          amount: total,
+          orderAmount:subtotal,
+          platformFee:tax,
+          totalPaid:total,
           status: 'INITIATED',
           paymentIntentId: paymentIntent.id, 
         },
@@ -118,7 +121,7 @@ export class OrdersService {
       await tx.transactionLedger.create({
         data:{
           transactionId:txRecord.id,
-          amount:total,
+          amount:subtotal,
           previousStatus: 'INITIATED',
           currentStatus: 'INITIATED',
           actorId: buyer.id,
@@ -199,7 +202,7 @@ export class OrdersService {
           orderItems: {
             include: { product: { select: { id: true, name: true, owner: { select: { id: true, name: true } } } } },
           },
-          transaction: { select: { status: true, amount: true, proofOfDelivery:true } },
+          transaction: { select: { status: true, totalPaid: true, proofOfDelivery:true } },
         },
       }),
       this.prisma.order.count({ where }),
@@ -254,7 +257,7 @@ export class OrdersService {
           orderItems: {
             include: { product: { select: { id: true, name: true, owner: { select: { id: true, name: true } } } } },
           },
-          transaction: { select: { status: true, amount: true, proofOfDelivery:true } },
+          transaction: { select: { status: true, orderAmount: true, proofOfDelivery:true } },
         },
       }),
       this.prisma.order.count({ where }),
@@ -319,7 +322,7 @@ export class OrdersService {
           select: {
             id: true,
             status: true,
-            amount: true,
+            orderAmount: true,
             createdAt: true,
           },
         },
