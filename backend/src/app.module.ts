@@ -23,6 +23,7 @@ import { OrdersModule } from './orders/orders.module';
 import { OrderItemsModule } from './order-items/order-items.module';
 import { StripeModule } from './stripe/stripe.module';
 import { TransactionLedgerModule } from './transaction-ledger/transaction-ledger.module';
+import { NotificationModule } from './notification/notification.module';
 
 @Module({
   imports: [
@@ -53,7 +54,8 @@ import { TransactionLedgerModule } from './transaction-ledger/transaction-ledger
     OrdersModule,
     OrderItemsModule,
     StripeModule,
-    TransactionLedgerModule
+    TransactionLedgerModule,
+    NotificationModule
     
   ],
   controllers: [AppController],

@@ -6,6 +6,7 @@ import SecurityModal from './components/SecurityModal';
 import './globals.css';
 import dynamic from 'next/dynamic';
 import { CartProvider } from '@/context/CartContext';
+import { NotificationProvider } from '@/context/NotificationContext';
 import CartDrawer from './retailer/market/componenets/CartDrawer';
 import { signOut, useSession } from 'next-auth/react';
 import { useEffect } from 'react';
@@ -23,6 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={inter.className}>
         
         <Providers>
+          <NotificationProvider>
           <CartProvider>
           <TrustProvider>
            <NavBar/>
@@ -31,6 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <SecurityModal/>
           </TrustProvider>
           </CartProvider>
+          </NotificationProvider>
         </Providers>
       </body>
     </html>

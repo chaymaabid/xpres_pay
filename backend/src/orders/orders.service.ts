@@ -8,6 +8,8 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { CreateOrderItemDto } from 'src/order-items/dto/create-order-items';
 import { TransactionLedgerService } from 'src/transaction-ledger/transaction-ledger.service';
 import { contains } from 'class-validator';
+import { NotificationService } from 'src/notification/notification.service';
+import { NotificationType } from '@prisma/client';
 
 
 
@@ -20,13 +22,14 @@ export class OrdersService {
     private readonly usersService: UsersService,
     private readonly productService: ProductsService,
     private readonly orderItemsService: OrderItemsService,
-    private readonly ledger: TransactionLedgerService
+    private readonly ledger: TransactionLedgerService,
+    private readonly notificationService: NotificationService,
   ) {}
  
   async Order(dto: CreateOrderDto, keycloakId: string) {
     const buyer = await this.usersService.findByKeycloakId(keycloakId);
     if (!buyer) throw new Error('Buyer not found');
- 
+    let farmerId: string | undefined;
     // check available quantity first
     for (const item of dto.items) {
       const product = await this.prisma.product.findUnique({
@@ -66,7 +69,7 @@ export class OrdersService {
       const product = await tx.product.findUnique({
         where: { id: item.productId },
       });
-
+      farmerId=product?.ownerId;
       const price = product!.price.toNumber();
       subtotal += price * item.quantity;
 
@@ -127,7 +130,16 @@ export class OrdersService {
           actorId: buyer.id,
         }
       });
- 
+      
+      if (farmerId) {
+        await this.notificationService.create({
+        userId: farmerId,
+        type: NotificationType.ORDER_CREATED,
+        title: 'New Order',
+        message: `New Order Created by ${buyer.name}`,
+        url: `farmer/orders/${order.id}`,
+        });
+      }
       // ── 6. Return orderId + clientSecret to frontend ────────────────────
       return {
         orderId: order.id,

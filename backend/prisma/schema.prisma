@@ -26,6 +26,15 @@ enum EscrowState {
   RELEASED
 }
 
+enum NotificationType {
+  ORDER_CREATED
+  ORDER_DELIVERED
+  PAYMENT_RECEIVED
+  NEW_MESSAGE
+  TRUST_SCORE_UPDATED
+  NEW_CREDIT_OFFER
+  CREDIT_OFFER_ACCEPTED
+}
 model User {
   id               String        @id @default(uuid())
   keycloakId       String        @unique
@@ -33,7 +42,7 @@ model User {
   name             String?
   role             UserRole
   stripeAccountId  String?       
-
+  trustScore    Float?        @default(0.0)
   trustProfile     TrustProfile?
   
   products         Product[]     @relation("UserProducts")
@@ -42,8 +51,24 @@ model User {
 
   creditsGranted   Credit[]      @relation("Lender")
   creditsReceived  Credit[]      @relation("Borrower")
+  notifications Notification[]
 
   createdAt        DateTime      @default(now())
+}
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  type      NotificationType @default(NEW_MESSAGE)
+  title     String?
+  message   String
+  url       String?          
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  readedAt DateTime?
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
 }
 
 model Product {
@@ -127,7 +152,6 @@ model TrustProfile {
   user          User         @relation(fields: [userId], references: [id])
   
   idNumber      String?
-  trustScore    Float        @default(50.0)
   isVerified    Boolean      @default(false)
   cinImg        String?      
   faceImg       String?      
