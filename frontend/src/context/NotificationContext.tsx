@@ -2,6 +2,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { authApi } from '@/lib/authApi';
+import { useParams, usePathname } from 'next/navigation';
 
 export type Notification = {
   id: string;
@@ -28,6 +29,7 @@ const NotificationContext = createContext<NotificationContextType | null>(null);
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
+  const pathname=usePathname();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
@@ -65,9 +67,18 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       setUnreadCount(0);
       setNotifications([]);
     }
+    const interval = setInterval(() => {
+      fetchUnreadCount();
+    }, 30_000);
+
+    return () => clearInterval(interval);
+
   }, [isAuthenticated, fetchUnreadCount]);
 
-  // Close dropdown on outside click
+  useEffect(() => {
+    if (isAuthenticated) fetchUnreadCount();
+  }, [pathname, isAuthenticated, fetchUnreadCount]);
+  
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {

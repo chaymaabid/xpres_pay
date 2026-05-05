@@ -186,14 +186,13 @@ export class KycService {
         cinImg:      cinKey,
         faceImg:     selfieKey,
         isVerified:  true,
-        trustScore:  100.0,
+        trustScore:  10.0,
         idNumber: idNumber,
       },
       update: {
         cinImg:      cinKey,
         faceImg:     selfieKey,
         isVerified:  true,
-        trustScore:  100.0,
       },
     });
  

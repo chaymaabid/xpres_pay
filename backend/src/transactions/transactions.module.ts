@@ -5,10 +5,11 @@ import { UsersModule } from 'src/users/users.module';
 import { StripeModule } from 'src/stripe/stripe.module';
 import { TransactionLedgerModule } from 'src/transaction-ledger/transaction-ledger.module';
 import { StorageModule } from 'src/storage/storage.module';
+import { NotificationModule } from 'src/notification/notification.module';
 
 @Module({
   controllers: [TransactionsController],
   providers: [TransactionsService],
-  imports: [UsersModule, StripeModule, TransactionLedgerModule, StorageModule,]
+  imports: [UsersModule, StripeModule, TransactionLedgerModule, StorageModule, NotificationModule]
 })
 export class TransactionsModule {}

@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import {User, UserRole, Prisma} from '@prisma/client';
+import {User, UserRole, Prisma, NotificationType} from '@prisma/client';
 import { CreateUserDto } from './dto/createUser.dto';
 @Injectable()
 export class UsersService {
@@ -72,5 +72,43 @@ export class UsersService {
       where: { role: UserRole.RETAILER },
     });
   }
+  async updateTrustScore(keycloakId:string,prisma: Prisma.TransactionClient | PrismaService = this.prisma){
+    const user = await prisma.user.findUnique({
+      where: { keycloakId },
+      select: {
+        id: true,
+        trustProfile: {
+          select: {
+            id: true,
+            trustScore: true,
+          },
+        },
+      },
+    });
+    if (!user) { throw new NotFoundException('User not found');}
 
+    if (!user.trustProfile) {
+      throw new BadRequestException('Cannot update trust score: user has no trust profile',);
+    }
+
+    const updatedProfile = await prisma.trustProfile.update({
+      where: {
+        userId: user.id,
+      },
+      data: {
+        trustScore: {
+          increment: 20,
+        },
+      },
+      select: {
+      id: true,
+        userId: true,
+        trustScore: true,
+        isVerified: true,
+        updatedAt: true,
+      },
+    });
+    
+    return updatedProfile;
+  }
 }

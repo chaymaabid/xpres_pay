@@ -34,6 +34,14 @@ enum NotificationType {
   TRUST_SCORE_UPDATED
   NEW_CREDIT_OFFER
   CREDIT_OFFER_ACCEPTED
+  CREDIT_OFFER_REJECTED
+}
+
+enum CreditOfferStatus{
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
 }
 model User {
   id               String        @id @default(uuid())
@@ -41,8 +49,11 @@ model User {
   email            String        @unique
   name             String?
   role             UserRole
-  stripeAccountId  String?       
-  trustScore    Float?        @default(0.0)
+  stripeAccountId       String?       // Farmer: Express connected account
+  stripeCustomerId      String?       // Retailer: Stripe Customer ID
+  stripePaymentMethodId String?       // Retailer: Default saved payment method
+    
+
   trustProfile     TrustProfile?
   
   products         Product[]     @relation("UserProducts")
@@ -152,6 +163,7 @@ model TrustProfile {
   user          User         @relation(fields: [userId], references: [id])
   
   idNumber      String?
+  trustScore    Float        @default(10.0)
   isVerified    Boolean      @default(false)
   cinImg        String?      
   faceImg       String?      
@@ -172,9 +184,7 @@ model UserDevice {
   @@unique([trustProfileId, deviceFingerprint])
 }
 model Credit {
-  id             String        @id @default(uuid())
-  limit          Decimal       @db.Decimal(10, 2)
-  currentBalance Decimal       @db.Decimal(10, 2) @default(0.0)
+  id              String   @id @default(uuid())
 
   lenderId       String
   lender         User          @relation("Lender", fields: [lenderId], references: [id])
@@ -182,7 +192,24 @@ model Credit {
   borrowerId     String
   borrower       User          @relation("Borrower", fields: [borrowerId], references: [id])
 
+  amount          Float
+  currency        String   @default("usd")
+
+  status          CreditOfferStatus @default(PENDING)
+
+  paymentIntentId String?
+  transferId      String?
+  refundId        String?
+
+  cancelledBy     String?   // retailer/admin
+  note            String?
+
+  createdAt       DateTime @default(now())
+  respondedAt     DateTime?
+  updatedAt       DateTime          @updatedAt
+  
   transactions   Transaction[]
+  
 }
 
 

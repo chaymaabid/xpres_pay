@@ -59,10 +59,10 @@ export default function FarmerSidebar() {
       description:' browse orders',
     },
     {
-      name: 'Credit Line',
+      name: 'Credits',
       href: '/farmer/credits',
       icon: <CreditIcon />,
-      description: 'View credit status',
+      description: 'View credit offers and history',
     },
     {
       name: 'Security Settings',
@@ -143,9 +143,7 @@ function CatalogIcon() {
 
 function CreditIcon() {
   return (
-    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" className="w-6 h-6">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-    </svg>
+    <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 24 24" fill="#000000"><g fill="none" stroke="#000000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" color="currentColor"><path d="M14 2.222q-.97-.198-2-.2c-5.523 0-10 4.472-10 9.989S6.477 22 12 22s10-4.472 10-9.989q-.002-1.027-.2-1.998"/><path d="M12 9.014c-1.105 0-2 .671-2 1.499c0 .827.895 1.498 2 1.498s2 .67 2 1.498s-.895 1.499-2 1.499m0-5.994c.87 0 1.612.417 1.886 1m-1.886-1v-.999m0 6.993c-.87 0-1.612-.417-1.886-1m1.886 1v.999M21.995 2L17.82 6.174m-.824-3.653l.118 3.088c0 .728.435 1.182 1.228 1.239l3.124.147"/></g></svg>
   );
 }
 

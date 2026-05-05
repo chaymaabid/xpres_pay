@@ -9,8 +9,9 @@ import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 import { TransactionLedgerService } from '../transaction-ledger/transaction-ledger.service';
 import { KycVisionService } from '../kyc/kyc.vision';
-import { EscrowState } from '@prisma/client';
+import { EscrowState, NotificationType } from '@prisma/client';
 import { StorageService } from 'src/storage/storage.service';
+import { NotificationService } from 'src/notification/notification.service';
 
 @Injectable()
 export class TransactionsService {
@@ -23,6 +24,7 @@ export class TransactionsService {
     private readonly ledger: TransactionLedgerService,
     private readonly config: ConfigService,
     private readonly minioStorage: StorageService,
+    private readonly notificationService:NotificationService,
   ) {
   }
 
@@ -119,7 +121,7 @@ export class TransactionsService {
         `Stripe transfer failed: ${err.message}`,
       );
     }
-    this.prisma.$transaction(async (tx) => {
+    await this.prisma.$transaction(async (tx) => {
       await this.ledger.release(orderId,undefined,tx);
       await tx.transaction.update({
         where: {
@@ -128,7 +130,15 @@ export class TransactionsService {
         data:{
           transferId:transfer.id
         }
-    })
+      })
+      await this.usersService.updateTrustScore(keycloakId,tx);
+      await this.notificationService.create(
+      {
+        userId: farmer.id,
+        type: NotificationType.TRUST_SCORE_UPDATED,
+        title: 'Trust Score Increased',
+        message: `You earned +20 trust points for successfully completing delivery and receiving payment of order ${orderId}.`
+      });
     });
     return {
       success:    true,
