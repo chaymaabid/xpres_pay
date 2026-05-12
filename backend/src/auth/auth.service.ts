@@ -168,13 +168,15 @@ export class AuthService {
    * Syncs Keycloak user after login
    */
   async syncUser(keycloakPayload: any) {
-    const { sub, email,name, realm_access } = keycloakPayload;
-    const roles: string[] = realm_access?.roles ?? [];
+    const { sub, email,name, realm_access, roles = []  } = keycloakPayload;
+    //const roles: string[] = realm_access?.roles ?? [];
 
     const role = roles.includes('FARMER')
       ? UserRole.FARMER
       : roles.includes('RETAILER')
       ? UserRole.RETAILER
+      :roles.includes('ADMIN')
+      ?UserRole.ADMIN
       : null;
 
     const existing = await this.usersService.findByKeycloakId(sub);

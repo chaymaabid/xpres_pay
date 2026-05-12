@@ -1,11 +1,15 @@
-import { Controller, Get, Req, Headers, UseGuards, UnauthorizedException } from '@nestjs/common';
+import { Controller, Get, Req, Headers, UseGuards, UnauthorizedException, Query } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {  Public } from 'nest-keycloak-connect';
+import { Roles } from 'src/common/decorators/roles.decorator';
+import { UsersService } from './users.service';
 
 
 @Controller('users')
 export class UserController{
-    constructor(private prisma:PrismaService){}
+    constructor(private prisma:PrismaService,
+                private readonly usersService: UsersService,
+    ){}
 
  
 
@@ -40,5 +44,15 @@ export class UserController{
     );
 
     return { hasProfile: true, isDeviceTrusted };
+  }
+  @Get()
+  @Roles('ADMIN')
+  getAllUsers(
+    @Req() req,
+    @Query('page') page = '1',
+    @Query('limit') limit = '10',
+    @Query('search') search?: string,
+    ) {
+    this.usersService.findAll({page: parseInt(page),limit: parseInt(limit),search,})
   }
 }

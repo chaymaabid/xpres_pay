@@ -6,6 +6,7 @@ import { CreateCreditDto } from './dto/credits.dto';
 @Controller('credits')
 export class CreditsController {
   constructor(private readonly creditsService: CreditsService) {}
+
   @Post('setup-intent')
   @Roles('RETAILER')
   createSetupIntent(@Req() req: any) {
@@ -17,15 +18,16 @@ export class CreditsController {
   getSavedCard(@Req() req: any) {
     return this.creditsService.getSavedPaymentMethod(req.user.sub);
   }
+
   @Post()
   @Roles('RETAILER')
   createCredit(@Body() dto: CreateCreditDto, @Req() req: any) {
     return this.creditsService.createCredit(dto, req.user.sub);
   }
-
+  
   @Post(':id/cancel')
   @Roles('RETAILER')
-  cancelCredit(@Param('id') id: string, @Req() req: any) {
+  cancelCredit(@Param('id') id: string, @Req() req: any) { 
     return this.creditsService.cancelCredit(id, req.user.sub);
   }
 
@@ -46,11 +48,13 @@ export class CreditsController {
   getMyOffers(@Req() req: any) {
     return this.creditsService.getRetailerCredits(req.user.sub);
   }
+  
   @Get('marketplace')
   @Roles('RETAILER')
   getMarketplace(@Req() req: any) {
     return this.creditsService.getMarketplace(req.user.sub);
   }
+  
   @Get('farmer/all')
   @Roles('FARMER')
   getFarmerAll(@Req() req: any) {

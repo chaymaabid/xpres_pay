@@ -47,6 +47,8 @@ export const authOptions: AuthOptions = {
             ? 'FARMER'
             : realmRoles.includes('RETAILER')
             ? 'RETAILER'
+            :realmRoles.includes('ADMIN')
+            ?'ADMIN'
             : undefined,
           keycloakId: decoded.sub,
           error: undefined, // clear any previous error on fresh login
@@ -165,6 +167,8 @@ async function refreshAccessToken(token: any) {
         ? 'FARMER'
         : realmRoles.includes('RETAILER')
         ? 'RETAILER'
+        :realmRoles.includes('ADMIN')
+        ?'ADMIN'
         : undefined,
       keycloakId: decoded.sub,
       error: undefined, // clear error on successful refresh

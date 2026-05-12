@@ -1,20 +1,9 @@
-// app/dashboard/farmer/layout.tsx
 import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import FarmerSidebar from './FarmerSidebar';
 import NavBar from '@/app/components/NavBar';
 
-/**
- * FARMER DASHBOARD LAYOUT
- * 
- * Wraps all farmer dashboard pages with:
- * - Left sidebar navigation
- * - Top navbar (your existing one)
- * - Main content area
- * 
- * This layout applies to all pages under /dashboard/farmer/*
- */
 
 export default async function FarmerDashboardLayout({
   children,

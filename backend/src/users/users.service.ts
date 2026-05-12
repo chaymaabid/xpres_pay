@@ -47,18 +47,23 @@ export class UsersService {
       where: { id },
     });
   }
-  async findAll(params: {
-    skip?: number;
-    take?: number;
-    where?: Prisma.UserWhereInput;
-    orderBy?: Prisma.UserOrderByWithRelationInput;
-  }): Promise<User[]> {
-    const { skip, take, where, orderBy } = params;
+  async findAll({ page,limit,search}
+    ): Promise<User[]> {
+    const skip =(page-1)*limit;
+    const where:any={};
+    
+    if(search){
+       where.OR = [
+        { name: { contains: search, mode: 'insensitive' }  },
+        { email: { contains: search, mode: 'insensitive' }  },
+      
+      ];
+    }
     return this.prisma.user.findMany({
-      skip,
-      take,
       where,
-      orderBy,
+      skip,
+      take:limit,
+      orderBy: { createdAt: 'desc' },
     });
   }
 

@@ -17,6 +17,7 @@ datasource db {
 enum UserRole {
   FARMER
   RETAILER
+  ADMIN
 }
 
 enum EscrowState {
@@ -60,8 +61,8 @@ model User {
 
   ordersAsBuyer    Order[]       @relation("BuyerOrders")
 
-  creditsGranted   Credit[]      @relation("Lender")
-  creditsReceived  Credit[]      @relation("Borrower")
+  loansGiven             Loan[]        @relation("LoanLender")
+  loansTaken             Loan[]        @relation("LoanBorrower")
   notifications Notification[]
 
   createdAt        DateTime      @default(now())
@@ -126,8 +127,8 @@ model Transaction {
   paymentIntentId  String?   
   transferId       String?         
 
-  creditId         String?
-  credit           Credit?            @relation(fields: [creditId], references: [id])
+  loanId           String?
+  loan             Loan?         @relation(fields: [loanId], references: [id])
 
   ledgerEntries    TransactionLedger[]
   
@@ -183,17 +184,13 @@ model UserDevice {
 
   @@unique([trustProfileId, deviceFingerprint])
 }
-model Credit {
+model CreditOffer {
   id              String   @id @default(uuid())
 
-  lenderId       String
-  lender         User          @relation("Lender", fields: [lenderId], references: [id])
-  
-  borrowerId     String
-  borrower       User          @relation("Borrower", fields: [borrowerId], references: [id])
+  loanId          String
+  loan            Loan     @relation(fields: [loanId], references: [id])
 
-  amount          Float
-  currency        String   @default("usd")
+  amount          Decimal  @db.Decimal(10,2)
 
   status          CreditOfferStatus @default(PENDING)
 
@@ -201,17 +198,33 @@ model Credit {
   transferId      String?
   refundId        String?
 
-  cancelledBy     String?   // retailer/admin
+  cancelledBy     String?
   note            String?
 
-  createdAt       DateTime @default(now())
   respondedAt     DateTime?
-  updatedAt       DateTime          @updatedAt
-  
-  transactions   Transaction[]
-  
-}
 
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+model Loan {
+  id           String   @id @default(uuid())
+
+  lenderId     String
+  lender       User @relation("LoanLender", fields: [lenderId], references: [id])
+
+  borrowerId   String
+  borrower     User @relation("LoanBorrower", fields: [borrowerId], references: [id])
+
+  totalCredit  Decimal @default(0) @db.Decimal(10,2)
+  totalUsed    Decimal @default(0) @db.Decimal(10,2)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  creditOffers CreditOffer[]
+  transactions Transaction[]
+  @@unique([lenderId, borrowerId])
+}
 
 
 

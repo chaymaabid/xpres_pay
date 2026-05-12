@@ -11,9 +11,6 @@ import { CreateCreditDto } from './dto/credits.dto';
 import { NotificationService } from 'src/notification/notification.service';
 import { NotificationType } from '@prisma/client';
 
-// Trust score → max credit amount formula: score × MULTIPLIER
-const SCORE_MULTIPLIER = 50; // score 80 → max $4,000
-
 @Injectable()
 export class CreditsService {
   private readonly logger = new Logger(CreditsService.name);
@@ -26,6 +23,7 @@ export class CreditsService {
     private readonly notificationService: NotificationService,
   ) {
   }
+
 
   // ─────────────────────────────────────────────────────────────────────────
   // STRIPE SETUP — called before the retailer's first offer
@@ -139,16 +137,43 @@ export class CreditsService {
       this.logger.warn(`PaymentIntent failed for retailer ${retailer.id}: ${code}`);
       throw new BadRequestException(message);
     }
-    const credit = await this.prisma.credit.create({
-      data: {
-        lenderId:        retailer.id,
-        borrowerId:      dto.borrowerId,
-        amount:          dto.amount,
-        note:            dto.note,
-        status:          'PENDING',
-        paymentIntentId: paymentIntent.id,
-      },
-    });
+    const credit =await this.prisma.$transaction(async (tx) => {
+      let loan = await tx.loan.findFirst({
+        where: {
+          lenderId: retailer.id,
+          borrowerId: farmer.id,
+        },
+      });
+      if (!loan) {
+        loan = await tx.loan.create({
+          data: {
+            lenderId: retailer.id,
+            borrowerId: farmer.id,
+          },
+        });
+      }
+      const creditOffer = await tx.creditOffer.create({
+        data: {
+          loanId: loan.id,
+          amount:dto.amount,
+          note:dto.note,
+          paymentIntentId: paymentIntent.id,
+          status: 'PENDING',
+        },
+        include: {
+          loan: {
+            include: {
+              borrower: {
+                include: {
+                  trustProfile: true,
+                },
+              },
+              lender: true,
+            },
+          },
+        },
+      });
+    return creditOffer;});
 
     this.logger.log(  `Credit ${credit.id} created — PI ${paymentIntent.id} charged $${dto.amount}`,);
       
@@ -172,8 +197,8 @@ export class CreditsService {
     const retailer = await this.usersService.findByKeycloakId(keycloakId);
     if (!retailer) throw new BadRequestException('Retailer not found');
 
-    const credit = await this.prisma.credit.findFirst({
-      where: { id: creditId, lenderId: retailer.id, status: 'PENDING' },
+    const credit = await this.prisma.creditOffer.findFirst({
+      where: { id: creditId,loan:{lenderId:retailer.id}, status: 'PENDING' },
     });
     if (!credit) {
       throw new NotFoundException(
@@ -186,7 +211,7 @@ export class CreditsService {
       payment_intent: credit.paymentIntentId!,
     });
 
-    await this.prisma.credit.update({
+    await this.prisma.creditOffer.update({
       where: { id: creditId },
       data: {
         status:      'CANCELLED',
@@ -199,6 +224,7 @@ export class CreditsService {
     this.logger.log(`Credit ${creditId} cancelled — refund ${refund.id}`);
     return { success: true, refundId: refund.id };
   }
+
   async acceptCredit(creditId: string, keycloakId: string) {
     const farmer = await this.usersService.findByKeycloakId(keycloakId);
     if (!farmer) throw new BadRequestException('Farmer not found');
@@ -206,8 +232,8 @@ export class CreditsService {
       throw new BadRequestException('Complete Stripe onboarding first.');
     }
 
-    const credit = await this.prisma.credit.findFirst({
-      where: { id: creditId, borrowerId: farmer.id, status: 'PENDING' },
+    const credit = await this.prisma.creditOffer.findFirst({
+      where: { id: creditId,loan:{borrowerId:farmer.id} , status: 'PENDING' },
     });
     if (!credit) throw new NotFoundException('Credit not found or not PENDING.');
 
@@ -217,18 +243,26 @@ export class CreditsService {
       destination: farmer.stripeAccountId,
       metadata:    { creditId },
     });
-
-    await this.prisma.credit.update({
-      where: { id: creditId },
-      data: {
-        status:      'ACCEPTED',
-        transferId:  transfer.id,
-        respondedAt: new Date(),
-      },
+    const loan=await this.prisma.$transaction(async(tx)=>{
+      await this.prisma.creditOffer.update({
+        where: {id:creditId},
+        data:{
+          status:'ACCEPTED',
+          transferId:transfer.id,
+          respondedAt:new Date(),
+        },
+      });
+      return await this.prisma.loan.update({
+        where:{id:credit.loanId},
+        data:{
+          totalCredit: {increment: credit.amount,},
+        }
+      })
     });
+    
     this.notificationService.create(
     {
-      userId: credit.lenderId,
+      userId: loan.lenderId,
       type: NotificationType.CREDIT_OFFER_ACCEPTED,
       title: 'Credit Offer Acccepted',
       message: `${farmer.name} accept your credit offer of $${credit.amount} `,
@@ -243,8 +277,9 @@ export class CreditsService {
     const farmer = await this.usersService.findByKeycloakId(keycloakId);
     if (!farmer) throw new BadRequestException('Farmer not found');
 
-    const credit = await this.prisma.credit.findFirst({
-      where: { id: creditId, borrowerId: farmer.id, status: 'PENDING' },
+    const credit = await this.prisma.creditOffer.findFirst({
+      where: { id: creditId, loan: { borrowerId: farmer.id,}, status: 'PENDING' },
+      include: { loan: true,},
     });
     if (!credit) throw new NotFoundException('Credit not found or not PENDING.');
 
@@ -252,7 +287,7 @@ export class CreditsService {
       payment_intent: credit.paymentIntentId!,
     });
 
-    await this.prisma.credit.update({
+    await this.prisma.creditOffer.update({
       where: { id: creditId },
       data: {
         status:      'REJECTED',
@@ -262,7 +297,7 @@ export class CreditsService {
     });
     this.notificationService.create(
     {
-      userId: credit.lenderId,
+      userId: credit.loan.lenderId,
       type: NotificationType.CREDIT_OFFER_REJECTED,
       title: 'Credit Offer Rejected',
       message: `${farmer.name} reject your credit offer of $${credit.amount} `,
@@ -274,50 +309,95 @@ export class CreditsService {
   async getRetailerCredits(keycloakId: string) {
     const retailer = await this.usersService.findByKeycloakId(keycloakId);
     if (!retailer) throw new BadRequestException('Retailer not found');
-
-    const credits = await this.prisma.credit.findMany({
-      where:   { lenderId: retailer.id },
-      include: {
-        borrower: {
-          select: {
-            id: true, name: true, email: true,
-            trustProfile: { select: { trustScore: true } },
+    const credits = await this.prisma.creditOffer.findMany({
+    where: {
+      loan: {
+        lenderId: retailer.id,
+      },
+    },
+    include: {
+      loan: {
+        include: {
+          borrower: {
+            include: {
+              trustProfile: true,
+            },
           },
+          lender: true,
         },
       },
-      orderBy: { createdAt: 'desc' },
-    });
+    },
 
-    // Compute stats for the dashboard cards
-    const totalReserved    = credits
-      .filter(c => c.status === 'PENDING')
-      .reduce((s, c) => s + Number(c.amount), 0);
+    orderBy: {
+      createdAt: 'desc',
+    },
+  });
 
-    const accepted         = credits.filter(c => c.status === 'ACCEPTED').length;
-    const total            = credits.filter(c => c.status !== 'CANCELLED').length;
-    const acceptanceRate   = total > 0 ? Math.round((accepted / total) * 100) : 0;
+  const formattedCredits = credits.map((credit) => ({
+    id: credit.id,
+    amount: Number(credit.amount),
+    status: credit.status,
+    note: credit.note,
+    createdAt: credit.createdAt,
+    respondedAt: credit.respondedAt,
+    paymentIntentId: credit.paymentIntentId,
+    borrower: {
+      id: credit.loan.borrower.id,
+      name: credit.loan.borrower.name,
+      email: credit.loan.borrower.email,
+      trustProfile: credit.loan.borrower.trustProfile
+        ? {
+            score: credit.loan.borrower.trustProfile.trustScore,
+          }
+        : 0,
+    },
+    lender: {
+      id: credit.loan.lender.id,
+      name: credit.loan.lender.name,
+      email: credit.loan.lender.email,
+    },
+  }));
+  const acceptedCredits = credits.filter(
+    (c) => c.status === 'ACCEPTED'
+  );
+  const totalReserved = acceptedCredits.reduce(
+    (sum, c) => sum + Number(c.amount),
+    0
+  );
+  const acceptanceRate =
+    credits.length === 0
+      ? 0
+      : (acceptedCredits.length / credits.length) * 100;
+  const activeFarmers = new Set(
+    acceptedCredits.map((c) => c.loan.borrowerId)
+  ).size;
+  const borrowerScores = acceptedCredits
+    .map((c) => c.loan.borrower.trustProfile?.trustScore)
+    .filter((score): score is number => score !== undefined);
+  const avgScore =
+    borrowerScores.length === 0
+      ? 0
+      : borrowerScores.reduce((a, b) => a + b, 0) /
+        borrowerScores.length;
 
-    const activeFarmers    = new Set(
-      credits.filter(c => c.status === 'ACCEPTED').map(c => c.borrowerId)
-    ).size;
+  return {
+    credits: formattedCredits,
+    stats: { totalReserved,acceptanceRate,activeFarmers,avgScore,},
+  };
+}
 
-    const avgScore = credits.length > 0
-      ? Math.round(
-          credits.reduce((s, c) => s + (c.borrower.trustProfile?.trustScore ?? 0), 0)
-          / credits.length
-        )
-      : 0;
-
-    return { credits, stats: { totalReserved, acceptanceRate, activeFarmers, avgScore } };
-  }
-  // get Farmer credits
   async getFarmerAllCredits(keycloakId: string) {
     const farmer = await this.usersService.findByKeycloakId(keycloakId);
     if (!farmer) throw new BadRequestException('Farmer not found');
  
-    const credits = await this.prisma.credit.findMany({
-      where:   { borrowerId: farmer.id },
-      include: { lender: { select: { id: true, name: true, email: true } } },
+    const credits = await this.prisma.creditOffer.findMany({
+      where:   { loan:{borrowerId:farmer.id} },
+      include: { loan: {
+                  include: {
+                    lender: { include: { trustProfile: true,},},
+                    borrower: true,
+                  }, },
+      },
       orderBy: { createdAt: 'desc' },
     });
  
@@ -330,9 +410,7 @@ export class CreditsService {
       stats: { totalOffered, totalPending, totalAccepted, totalRejected },
     };
   }
-  // ─────────────────────────────────────────────────────────────────────────
-  // READ — MARKETPLACE: list verified farmers with trust scores + order count
-  // ─────────────────────────────────────────────────────────────────────────
+ 
   async getMarketplace(keycloakId: string) {
     const retailer = await this.usersService.findByKeycloakId(keycloakId);
     if (!retailer) throw new BadRequestException('Retailer not found');
@@ -387,23 +465,26 @@ export class CreditsService {
       };
     });
   }
+
     // ─────────────────────────────────────────────────────────────────────────
   // READ — FARMER: their pending credit offers
   // ─────────────────────────────────────────────────────────────────────────
   async getFarmerPendingCredits(keycloakId: string) {
+   
     const farmer = await this.usersService.findByKeycloakId(keycloakId);
     if (!farmer) throw new BadRequestException('Farmer not found');
-
-    return this.prisma.credit.findMany({
-      where:   { borrowerId: farmer.id, status: 'PENDING' },
-      include: { lender: { select: { id: true, name: true, email: true } } },
+    return this.prisma.creditOffer.findMany({
+      where:   { loan:{borrowerId:farmer.id}, status: 'PENDING' },
+      include: { loan: {
+                  include: {
+                    lender: { include: { trustProfile: true,},},
+                    borrower: true,
+                  }, }, },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // PRIVATE — ensure Stripe Customer exists for retailer (create once)
-  // ─────────────────────────────────────────────────────────────────────────
+
   private async ensureStripeCustomer(retailer: any): Promise<string> {
     if (retailer.stripeCustomerId) return retailer.stripeCustomerId;
 
@@ -437,6 +518,7 @@ export class CreditsService {
     return messages[code ?? '']
       ?? 'Your payment could not be processed. Please check your card or use a different one.';
   }
+
 }
 
 

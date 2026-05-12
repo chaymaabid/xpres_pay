@@ -25,6 +25,8 @@ import { StripeModule } from './stripe/stripe.module';
 import { TransactionLedgerModule } from './transaction-ledger/transaction-ledger.module';
 import { NotificationModule } from './notification/notification.module';
 import { CreditsModule } from './credits/credits.module';
+import { SyncUserGuard } from './common/guards/sync-user.guard';
+import { LoanModule } from './loan/loan.module';
 
 @Module({
   imports: [
@@ -57,13 +59,15 @@ import { CreditsModule } from './credits/credits.module';
     StripeModule,
     TransactionLedgerModule,
     NotificationModule,
-    CreditsModule
+    CreditsModule,
+    LoanModule
     
   ],
   controllers: [AppController],
   providers: [
     AppService,
     { provide: APP_GUARD, useClass: AuthGuard },
+    {provide:APP_GUARD, useClass: SyncUserGuard},
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
 })

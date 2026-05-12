@@ -12,6 +12,13 @@
   "roles": {
     "realm": [
       {
+        "name":"ADMIN",
+        "description":"Platform administrator",
+        "composite":false,
+        "clientRole":false,
+        "containerId":"xprespay"
+      },
+      {
         "name": "FARMER",
         "description": "Agricultural seller",
         "composite": false,

@@ -30,7 +30,6 @@ export class OrdersService {
     const buyer = await this.usersService.findByKeycloakId(keycloakId);
     if (!buyer) throw new Error('Buyer not found');
     let farmerId: string | undefined;
-    // check available quantity first
     for (const item of dto.items) {
       const product = await this.prisma.product.findUnique({
         where: { id: item.productId },
@@ -47,7 +46,6 @@ export class OrdersService {
       }
     }
     return this.prisma.$transaction(async (tx) => {
-      // ── 1. Compute total from products ──────────────────────────────────
       let subtotal = 0;
       const orderItems :CreateOrderItemDto [] =[];
  
@@ -82,20 +80,15 @@ export class OrdersService {
       
       const tax = parseFloat((subtotal * 0.05).toFixed(2));
       const total= subtotal+tax
-      // ── 2. Create Stripe PaymentIntent (money stays on platform) ────────
-      //    No transfer_data → funds go to platform account (escrow)
       const paymentIntent = await this.stripe.paymentIntents.create({
         amount: total * 100,   
         currency: 'usd',
-        // Do NOT add transfer_data here — funds stay in platform escrow
-        // until you manually transfer after delivery confirmation
         metadata: {
           buyerId: buyer.id,
           buyerEmail: buyer.email ?? '',
         },
       });
  
-      // ── 3. Create Order with paymentIntentId ────────────────────────────
       const order = await tx.order.create({
         data: {
           buyer: { connect: { id: buyer.id } },
@@ -107,10 +100,8 @@ export class OrdersService {
         },
       });
  
-      // ── 4. Create order items ───────────────────────────────────────────
       await this.orderItemsService.createManyOrderItems(orderItems, order.id, tx);
  
-      // ── 5. Create transaction record ────────────────────────────────────
       const txRecord= await tx.transaction.create({
         data: {
           orderId: order.id,
@@ -140,7 +131,6 @@ export class OrdersService {
         url: `farmer/orders/${order.id}`,
         });
       }
-      // ── 6. Return orderId + clientSecret to frontend ────────────────────
       return {
         orderId: order.id,
         clientSecret: paymentIntent.client_secret,
