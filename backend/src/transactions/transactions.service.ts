@@ -101,13 +101,17 @@ export class TransactionsService {
         `Cannot release funds: transaction is in ${transaction.status} state, expected DELIVERED.`,
       );
     }
-
-    // ── Stripe transfer: platform → farmer connected account ──────────────
+    let stripeAmount=0;
+    if (transaction.paymentIntentId) {
+      const paymentIntent = await this.stripe.paymentIntents.retrieve(transaction.paymentIntentId,);
+      stripeAmount = paymentIntent.amount_received ;
+    }
     let transfer: Stripe.Transfer;
-    const subtotal = Number(transaction.orderAmount)
+    const fee=Number(transaction.platformFee)*100;
+    const subtotal = Number(order.totalAmount)
     try {
       transfer = await this.stripe.transfers.create({
-        amount:     subtotal * 100, // cents
+        amount:     stripeAmount-fee,
         currency:    'usd',
         destination: farmer.stripeAccountId,
         metadata: {
@@ -143,7 +147,7 @@ export class TransactionsService {
     return {
       success:    true,
       transferId: transfer.id,
-      amount:     Number(transaction.orderAmount),
+      amount:     Number(order.totalAmount),
       farmerId:   farmer.id,
     };
   }

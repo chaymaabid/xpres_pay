@@ -24,6 +24,10 @@ export type ShippingData = {
   zipCode: string;
   deliveryNote: string;
 };
+export type LoanInfo = {
+  loanId: string;
+  availableCredit: number; // totalCredit - totalUsed
+};
 export interface OrderListItem {
   id: string;
   totalAmount: string;
@@ -40,8 +44,9 @@ export interface OrderListItem {
     status: EscrowState;
     orderAmount: string;
     totalPaid:string;
+    amountToTransfer:string;
     proofOfDelivery:string | null;
-  } | null;
+  } ;
 }
 export interface OrderDetail {
   id: string;
@@ -85,8 +90,11 @@ export interface OrdersResponse {
 
 // What the backend returns from POST /orders
 export type CreateOrderResponse = {
-  orderId: string;
-  clientSecret: string;   // Stripe PaymentIntent client secret
+  orderId: string; 
+  clientSecret: string | null;  // null = fully paid by credit
+  fullyPaid: boolean;           // true = no card needed
+  creditApplied: number;        // how much credit was deducted
+  remainingAmount: number;      // what still needs card payment
 };
  
 // Computed totals helper
@@ -99,11 +107,19 @@ export function computeTotals(items: CheckoutItem[]) {
 }
 
 // api calls
-
+export const getLoanInfo = async (farmerId: string): Promise<LoanInfo | null> => {
+  try {
+    const res = await authApi.get(`/api/v1/orders/loans/farmer/${farmerId}`);
+    return res.data; // { loanId, availableCredit }
+  } catch {
+    return null; // no loan exists — that's fine
+  }
+};
 export const createOrder = async (
   items: CheckoutItem[],
   shipping: ShippingData,
   total:number,
+  useLoanCredit: boolean = false,
 ): Promise<CreateOrderResponse> => {
   const res = await authApi.post("/api/v1/orders", {
     items: items.map(i => ({ productId: i.productId, quantity: i.quantity })),
@@ -111,6 +127,7 @@ export const createOrder = async (
     shippingAddress: `${shipping.streetAddress}, ${shipping.city}, ${shipping.zipCode}`,
     note: shipping.deliveryNote,
     total:computeTotals(items).total,
+    useLoanCredit,
   });
   return res.data; 
 };

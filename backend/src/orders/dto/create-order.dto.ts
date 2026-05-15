@@ -4,18 +4,21 @@ import {
   IsUUID,
   IsInt,
   Min,
-  IsString
+  IsString,
+  IsOptional,
+  IsBoolean,
+  IsNumber
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
 class CreateOrderItemDto {
 
   @IsUUID()
-  productId: string;
+  productId!: string;
 
   @IsInt()
   @Min(1)
-  quantity: number;
+  quantity!: number;
 }
 
 export class CreateOrderDto {
@@ -23,14 +26,19 @@ export class CreateOrderDto {
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreateOrderItemDto)
-  items: CreateOrderItemDto[];
+  items!: CreateOrderItemDto[];
 
   @IsString()
-  status:string;
-  @IsString()
-  shippingAddress:string;
-  @IsString()
-  note:string;
+  shippingAddress!: string;
 
-  total: number;
+  @IsOptional()
+  @IsString()
+  note?: string;
+
+  @IsNumber()
+  total!: number;
+
+  @IsOptional()
+  @IsBoolean()
+  useLoanCredit?: boolean;
 }

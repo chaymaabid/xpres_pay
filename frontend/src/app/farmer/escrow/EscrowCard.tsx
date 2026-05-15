@@ -14,7 +14,7 @@ export default function EscrowCard({
   const [modalOpen, setModalOpen] = useState(false);
 
   const shortId    = order.id.replace(/-/g, '').substring(0, 8).toUpperCase();
-  const amount     = Number(order.transaction.orderAmount);
+  const amount     = Number(order.transaction.amountToTransfer);
   const createdAt  = new Date(order.createdAt).toLocaleDateString('en-US', {
     month: 'short', day: 'numeric', year: 'numeric',
   });

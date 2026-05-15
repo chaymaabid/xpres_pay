@@ -121,6 +121,7 @@ model Transaction {
   orderAmount      Decimal @default(0)     @db.Decimal(10, 2) 
   platformFee      Decimal @default(0)     @db.Decimal(10, 2)
   totalPaid        Decimal @default(0)     @db.Decimal(10, 2)
+  amountToTransfer Decimal @default(0)     @db.Decimal(10,2)
   status           EscrowState        @default(INITIATED)         
   ocrConfidence    Float?
   proofOfDelivery  String?            

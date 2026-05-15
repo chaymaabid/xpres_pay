@@ -26,117 +26,189 @@ export class OrdersService {
     private readonly notificationService: NotificationService,
   ) {}
  
-  async Order(dto: CreateOrderDto, keycloakId: string) {
-    const buyer = await this.usersService.findByKeycloakId(keycloakId);
-    if (!buyer) throw new Error('Buyer not found');
-    let farmerId: string | undefined;
-    for (const item of dto.items) {
-      const product = await this.prisma.product.findUnique({
-        where: { id: item.productId },
-        select: { id: true, name: true, stockAvailable: true },
-      });
+async Order(dto: CreateOrderDto, keycloakId: string) {
+  const buyer = await this.usersService.findByKeycloakId(keycloakId);
+  if (!buyer) throw new Error('Buyer not found');
  
-      if (!product) {
-        throw new BadRequestException(`Product ${item.productId} not found`);
-      }
-      if (product.stockAvailable < item.quantity) {
-        throw new BadRequestException(
-          `"${product.name}" only has ${product.stockAvailable} unit(s) available, but you requested ${item.quantity}.`,
-        );
-      }
+  let farmerId: string | undefined;
+  for (const item of dto.items) {
+    const product = await this.prisma.product.findUnique({
+      where: { id: item.productId },
+      select: { id: true, name: true, stockAvailable: true, ownerId: true },
+    });
+    if (!product) throw new BadRequestException(`Product ${item.productId} not found`);
+    if (product.stockAvailable < item.quantity) {
+      throw new BadRequestException(
+        `"${product.name}" only has ${product.stockAvailable} unit(s) available, but you requested ${item.quantity}.`,
+      );
     }
-    return this.prisma.$transaction(async (tx) => {
-      let subtotal = 0;
-      const orderItems :CreateOrderItemDto [] =[];
+    // All items must belong to the same farmer (single-farmer checkout)
+    if (!farmerId) farmerId = product.ownerId;
+  }
  
-      for (const item of dto.items) {
-        const updated = await tx.product.updateMany({
-        where: {
-          id: item.productId,
-          stockAvailable: { gte: item.quantity },
-        },
-        data: {
-          stockAvailable: { decrement: item.quantity },
-        },
-        });
-
-      if (updated.count === 0) {
-        throw new BadRequestException('Not enough stock');
-      }
-
-      const product = await tx.product.findUnique({
-        where: { id: item.productId },
+  let loan: { id: string; totalCredit: number; totalUsed: number } | null = null;
+  let creditApplied = 0;     
+  let remainingAmount = 0;    
+ 
+  if (dto.useLoanCredit && farmerId) {
+    const rawLoan = await this.prisma.loan.findUnique({
+      where: { lenderId_borrowerId: { lenderId: buyer.id, borrowerId: farmerId } },
+      select: { id: true, totalCredit: true, totalUsed: true },
+    });
+ 
+    if (rawLoan) {
+      loan = {
+        id: rawLoan.id,
+        totalCredit: rawLoan.totalCredit.toNumber(),
+        totalUsed: rawLoan.totalUsed.toNumber(),
+      };
+    }
+  }
+ 
+  let preliminarySubtotal = 0;
+  for (const item of dto.items) {
+    const product = await this.prisma.product.findUnique({
+      where: { id: item.productId },
+      select: { price: true },
+    });
+    preliminarySubtotal += product!.price.toNumber() * item.quantity;
+  }
+  const preliminaryTax = parseFloat((preliminarySubtotal * 0.05).toFixed(2));
+  const preliminaryTotal = preliminarySubtotal + preliminaryTax;
+ 
+  if (loan) {
+    const available = loan.totalCredit - loan.totalUsed;
+    creditApplied = Math.min(available, preliminaryTotal);
+  }
+  remainingAmount = parseFloat((preliminaryTotal - creditApplied).toFixed(2));
+ 
+  let paymentIntent: { id: string; client_secret: string | null } | null = null;
+  if (remainingAmount > 0) {
+    paymentIntent = await this.stripe.paymentIntents.create({
+      amount: Math.round(remainingAmount * 100), 
+      currency: 'usd',
+      metadata: {
+        buyerId: buyer.id,
+        buyerEmail: buyer.email ?? '',
+        loanId: loan?.id ?? '',
+        creditApplied: creditApplied.toString(),
+      },
+    });
+  }
+ 
+  return this.prisma.$transaction(async (tx) => {
+    let subtotal = 0;
+    const orderItems: CreateOrderItemDto[] = [];
+ 
+    for (const item of dto.items) {
+      const updated = await tx.product.updateMany({
+        where: { id: item.productId, stockAvailable: { gte: item.quantity } },
+        data: { stockAvailable: { decrement: item.quantity } },
       });
-      farmerId=product?.ownerId;
+      if (updated.count === 0) throw new BadRequestException('Not enough stock');
+ 
+      const product = await tx.product.findUnique({ where: { id: item.productId } });
+      farmerId = product?.ownerId;
       const price = product!.price.toNumber();
       subtotal += price * item.quantity;
-
+ 
       orderItems.push({
         productId: product!.id,
         quantity: item.quantity,
         unitPriceAtOrder: price,
       });
-      }
-      
-      const tax = parseFloat((subtotal * 0.05).toFixed(2));
-      const total= subtotal+tax
-      const paymentIntent = await this.stripe.paymentIntents.create({
-        amount: total * 100,   
-        currency: 'usd',
-        metadata: {
-          buyerId: buyer.id,
-          buyerEmail: buyer.email ?? '',
-        },
-      });
+    }
  
-      const order = await tx.order.create({
-        data: {
-          buyer: { connect: { id: buyer.id } },
-          totalAmount: subtotal,
-          status: 'pending_payment',
-          shippingAddress: dto.shippingAddress,
-          note: dto.note,
-          
-        },
-      });
+    const tax = parseFloat((subtotal * 0.05).toFixed(2));
+    const total = subtotal + tax;
  
-      await this.orderItemsService.createManyOrderItems(orderItems, order.id, tx);
+    const order = await tx.order.create({
+      data: {
+        buyer: { connect: { id: buyer.id } },
+        totalAmount: subtotal,
+        status: creditApplied > 0 && remainingAmount === 0 ? 'confirmed' : 'pending_payment',
+        shippingAddress: dto.shippingAddress,
+        note: dto.note,
+      },
+    });
  
-      const txRecord= await tx.transaction.create({
-        data: {
-          orderId: order.id,
-          orderAmount:subtotal,
-          platformFee:tax,
-          totalPaid:total,
-          status: 'INITIATED',
-          paymentIntentId: paymentIntent.id, 
-        },
+    await this.orderItemsService.createManyOrderItems(orderItems, order.id, tx);
+ 
+    if (loan && creditApplied > 0) {
+      await tx.loan.update({
+        where: { id: loan.id },
+        data: { totalUsed: { increment: creditApplied } },
       });
-      await tx.transactionLedger.create({
-        data:{
-          transactionId:txRecord.id,
-          amount:subtotal,
-          previousStatus: 'INITIATED',
-          currentStatus: 'INITIATED',
-          actorId: buyer.id,
-        }
-      });
-      
-      if (farmerId) {
-        await this.notificationService.create({
+    }
+    const fullyPaid = remainingAmount === 0;
+    const txRecord = await tx.transaction.create({
+      data: {
+        orderId: order.id,
+        orderAmount: subtotal,
+        platformFee: tax,
+        totalPaid: total,
+        amountToTransfer:remainingAmount-preliminaryTax,
+        status: fullyPaid ? 'LOCKED' : 'INITIATED',
+        paymentIntentId: paymentIntent?.id ?? null,
+        loanId: loan?.id ?? null,       
+      },
+    });
+ 
+    await tx.transactionLedger.create({
+      data: {
+        transactionId: txRecord.id,
+        amount: subtotal,
+        previousStatus: 'INITIATED',
+        currentStatus: fullyPaid ? 'LOCKED' : 'INITIATED',
+        actorId: buyer.id,
+      },
+    });
+ 
+    if (farmerId) {
+      await this.notificationService.create({
         userId: farmerId,
         type: NotificationType.ORDER_CREATED,
         title: 'New Order',
         message: `New Order Created by ${buyer.name}`,
-        url: `farmer/orders/${order.id}`,
-        });
-      }
-      return {
-        orderId: order.id,
-        clientSecret: paymentIntent.client_secret,
-      };
-    });
-  }
+        url: `/farmer/orders/${order.id}`,
+      });
+    }
+    return {
+      orderId: order.id,
+      clientSecret: paymentIntent?.client_secret ?? null,
+      fullyPaid,                          
+      creditApplied,                     
+      remainingAmount,                    
+    };
+  });
+}
+async getLoanForRetailer(
+  keycloakId: string,
+  farmerId: string,
+): Promise<{ loanId: string; availableCredit: number } | null> {
+  // Resolve the retailer's internal id from their keycloak id
+  const retailer = await this.usersService.findByKeycloakId(keycloakId);
+  if (!retailer) throw new NotFoundException('User not found');
+ 
+  const loan = await this.prisma.loan.findUnique({
+    where: {
+      // The retailer is the LENDER (they offered credit TO the farmer)
+      lenderId_borrowerId: { lenderId: retailer.id, borrowerId: farmerId },
+    },
+    select: { id: true, totalCredit: true, totalUsed: true },
+  });
+ 
+  if (!loan) return null; // no loan exists — frontend hides the credit toggle
+ 
+  const availableCredit = loan.totalCredit.toNumber() - loan.totalUsed.toNumber();
+ 
+  if (availableCredit <= 0) return null; // loan exists but exhausted
+ 
+  return {
+    loanId: loan.id,
+    availableCredit,
+  };
+}
   async findAllByRole({
   role,
   userId,
@@ -324,6 +396,7 @@ export class OrdersService {
           select: {
             id: true,
             status: true,
+            amountToTransfer:true,
             orderAmount: true,
             createdAt: true,
           },

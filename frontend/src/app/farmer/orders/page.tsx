@@ -98,7 +98,8 @@ export default function OrdersPage() {
                 <th className="px-6 py-3 text-left">Order ID</th>
                 <th className="px-6 py-3 text-left">Retailer</th>
                 <th className="px-6 py-3 text-left">Items</th>
-                <th className="px-6 py-3 text-left">Total</th>
+                <th className="px-6 py-3 text-left">Total Order</th>
+                <th className='px-6 py-3 text-left'>Order Earnings </th>
                 <th className="px-6 py-3 text-left">Status</th>
                 <th className="px-6 py-3 text-left">Date</th>
                 <th className="px-6 py-3 text-left">Actions</th>
@@ -120,6 +121,7 @@ export default function OrdersPage() {
                     <td className="px-6 py-4 font-bold text-[#2B6E44]">
                       ${Number(order.totalAmount).toFixed(2)}
                     </td>
+                    <td className="px-6 py-4 font-bold text-[primary]"> ${Number(order.transaction.amountToTransfer).toFixed(2)}</td>
                     <td className="px-6 py-4">
                       {badge ? (
                         <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${badge.className}`}>

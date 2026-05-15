@@ -35,8 +35,16 @@ export class OrdersController {
     @Post()
     @Roles('RETAILER')
     createOrder(@Body() dto: CreateOrderDto, @Req() req: any){
-         const keycloakId = req.user.sub;
+        const keycloakId = req.user.sub;
         return this.orderService.Order(dto,keycloakId);
 
+    }
+    @Get('loans/farmer/:farmerId')
+    async getLoanWithFarmer(
+    @Param('farmerId') farmerId: string,
+    @Req() req: any,  
+    ) {
+        const keycloakId = req.user.sub;
+        return this.orderService.getLoanForRetailer(keycloakId, farmerId);
     }
 }
