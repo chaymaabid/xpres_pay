@@ -98,7 +98,6 @@ export class KycService {
         let cinKey: string | null = null;
  
         if (session.mode === 'REAUTH') {
-          // User has a TrustProfile from a previous full KYC — use its CIN image
           const profile = await this.prisma.trustProfile.findUnique({
             where: { userId: session.userId },
           });
@@ -114,7 +113,6 @@ export class KycService {
           this.logger.log(`REAUTH: using TrustProfile cinImg for user ${session.userId}`);
  
         } else {
-          // FULL mode — cinImageKey was saved at step 2
           if (!session.cinImage) {
             return { success: false, message: 'CIN image not found — please restart KYC' };
           }
@@ -224,7 +222,6 @@ export class KycService {
     });
     this.logger.log(`Device ${fingerprint} registered as trusted under profile ${trustProfileId}`);
   }
-  // Private helpers
 
   private async uploadBase64ToMinio(
     base64:    string,

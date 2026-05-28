@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Product } from '@/app/services/product.service';
+import { Product } from '@/services/product.service';
 import ProductCard from '@/app/farmer/products/components/ProductCard';
 import ProductAddModal from '@/app/farmer/products/components/ProductAddModal';
 

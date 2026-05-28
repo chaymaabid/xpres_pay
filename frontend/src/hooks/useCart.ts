@@ -1,4 +1,3 @@
-// hooks/useCart.ts
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 
@@ -44,18 +43,16 @@ export function useCart(userId: string) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
-  // Re-run whenever userId changes (login / logout / user switch)
   useEffect(() => {
     setHydrated(false);
     setItems([]);
 
-    if (!userId) return; // logged-out: keep cart empty
+    if (!userId) return; 
 
     setItems(readCart(userId));
     setHydrated(true);
   }, [userId]);
 
-  // Persist — only after hydration so we never overwrite with []
   useEffect(() => {
     if (!hydrated || !userId) return;
     writeCart(userId, items);

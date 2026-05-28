@@ -1,8 +1,10 @@
-import { Controller, Get, Req, Headers, UseGuards, UnauthorizedException, Query } from '@nestjs/common';
+import { Controller, Get, Req, Headers, UseGuards, UnauthorizedException, Query, Param, Patch, Body } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {  Public } from 'nest-keycloak-connect';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { UsersService } from './users.service';
+import { AdminUsersQueryDto } from './dto/adminGetUsers.dto';
+import { SetUserEnabledDto } from './dto/set-user-enable.dto';
 
 
 @Controller('users')
@@ -47,12 +49,19 @@ export class UserController{
   }
   @Get()
   @Roles('ADMIN')
-  getAllUsers(
-    @Req() req,
-    @Query('page') page = '1',
-    @Query('limit') limit = '10',
-    @Query('search') search?: string,
-    ) {
-    this.usersService.findAll({page: parseInt(page),limit: parseInt(limit),search,})
+  getUsers(@Query() query: AdminUsersQueryDto) {
+    return this.usersService.getUsers(query);
+  }
+  @Get(':id')
+  @Roles('ADMIN')
+  getUserDetail(@Param('id') id: string) {
+    return this.usersService.getUserDetail(id);
+  }
+  @Patch(':id/enabled')
+  setUserEnabled(
+    @Param('id') id: string,
+    @Body() dto: SetUserEnabledDto,
+  ) {
+    return this.usersService.setUserEnabled(id, dto.enabled);
   }
 }

@@ -21,7 +21,7 @@ export class RolesGuard implements CanActivate {
     ]);
 
     if (!requiredRoles || requiredRoles.length === 0) {
-      return true; // No roles required
+      return true; 
     }
 
     const request = context.switchToHttp().getRequest();
@@ -41,7 +41,6 @@ export class RolesGuard implements CanActivate {
     this.logger.verbose(`Required roles: ${requiredRoles.join(', ')}`);
     this.logger.verbose(`User has roles: ${userRoles.join(', ')}`);
 
-    // Check if user has at least one required role
     const hasRole = requiredRoles.some((role) => userRoles.includes(role));
 
     if (!hasRole) {

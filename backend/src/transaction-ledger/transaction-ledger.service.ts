@@ -3,10 +3,11 @@ import { PrismaService } from '../prisma/prisma.service';
 import { EscrowState } from '@prisma/client';
 
 const VALID_TRANSITIONS: Record<EscrowState, EscrowState[]> = {
-  INITIATED:  ['LOCKED'],
-  LOCKED:     ['DELIVERED'],
-  DELIVERED:  ['RELEASED'],
-  RELEASED: [],
+  INITIATED:  ['LOCKED','BLOCKED'],
+  LOCKED:     ['DELIVERED','BLOCKED'],
+  DELIVERED:  ['RELEASED','BLOCKED'],
+  RELEASED: ['BLOCKED'],
+  BLOCKED:['INITIATED','LOCKED','DELIVERED','RELEASED']
 };
 export type Actor = 'SYSTEM' | 'RETAILER' | 'FARMER' | 'PLATFORM';
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { createProduct } from '@/app/services/product.service';
+import { createProduct } from '@/services/product.service';
 
 interface AddForm {
   name: string;

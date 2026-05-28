@@ -25,6 +25,7 @@ enum EscrowState {
   LOCKED
   DELIVERED
   RELEASED
+  BLOCKED
 }
 
 enum NotificationType {
@@ -50,6 +51,7 @@ model User {
   email            String        @unique
   name             String?
   role             UserRole
+  isEnabled  Boolean  @default(true)
   stripeAccountId       String?       // Farmer: Express connected account
   stripeCustomerId      String?       // Retailer: Stripe Customer ID
   stripePaymentMethodId String?       // Retailer: Default saved payment method

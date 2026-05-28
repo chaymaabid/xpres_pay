@@ -155,7 +155,7 @@ export class ProductsService {
   if (!image) throw new NotFoundException('Image not found');
 
   // Delete from MinIO then from DB
-  await this.storageService.deleteFile(image.url); // image.url is the minio key
+  await this.storageService.deleteFile(image.url); 
   await this.prisma.productImage.delete({ where: { id: imageId } });
 
   return { success: true };

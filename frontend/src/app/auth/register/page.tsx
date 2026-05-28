@@ -69,7 +69,6 @@ export default function RegisterPage() {
       return; // stop here, Stripe takes over
     }
 
-    // ── RETAILER (or fallback): show email verification modal ──
     setShowVerificationModal(true);
 
   } catch (err: any) {

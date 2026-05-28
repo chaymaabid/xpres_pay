@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Product, ProductImage } from '@/app/services/product.service';
-import { updateProduct, deleteProductImage, addProductImage } from '@/app/services/product.service';
+import { Product, ProductImage } from '@/services/product.service';
+import { updateProduct, deleteProductImage, addProductImage } from '@/services/product.service';
 import PresignedImage from '../../../components/PresignedProductImage';
 
 interface EditForm {

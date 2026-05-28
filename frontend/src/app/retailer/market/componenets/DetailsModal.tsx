@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ProductMarket } from '@/app/services/product.service';
+import { ProductMarket } from '@/services/product.service';
 import PresignedImage from '@/app/components/PresignedProductImage';
 
 export default function RetailerDetailsModal({

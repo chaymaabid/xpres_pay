@@ -1,6 +1,6 @@
 import { authApi } from "@/lib/authApi";
 
-export type EscrowState = 'INITIATED' | 'LOCKED' | 'DELIVERED' | 'RELEASED' ;
+export type EscrowState = 'INITIATED' | 'LOCKED' | 'DELIVERED' | 'RELEASED' |'BLOCKED' ;
 export type CheckoutItem = {
   productId: string;
   productName: string;
@@ -88,7 +88,6 @@ export interface OrdersResponse {
   meta: { total: number; page: number; limit: number; totalPages: number };
 }
 
-// What the backend returns from POST /orders
 export type CreateOrderResponse = {
   orderId: string; 
   clientSecret: string | null;  // null = fully paid by credit
@@ -96,8 +95,70 @@ export type CreateOrderResponse = {
   creditApplied: number;        // how much credit was deducted
   remainingAmount: number;      // what still needs card payment
 };
+export interface AdminOrderListItem {
+  id: string;
+  totalAmount: string;
+  status: string;
+  createdAt: string;
+  buyer: { id: string; name: string; email: string };
+  orderItems: {
+    id: string;
+    quantity: number;
+    product: {
+      id: string;
+      name: string;
+      owner: { id: string; name: string; email: string };
+    };
+  }[];
+  transaction: {
+    id: string;
+    status: EscrowState;
+    platformFee: string;
+    amountToTransfer: string;
+    totalPaid: string;
+    loanId: string | null;
+  } | null;
+}
  
-// Computed totals helper
+export interface AdminOrderDetail {
+  id: string;
+  totalAmount: string;
+  status: string;
+  shippingAddress: string;
+  note?: string;
+  createdAt: string;
+  buyer: {
+    id: string; name: string; email: string; createdAt: string;
+    trustProfile?: { trustScore: number; isVerified: boolean };
+  };
+  orderItems: {
+    id: string; quantity: number; unitPriceAtOrder: string;
+    product: {
+      id: string; name: string; description: string;
+      images: { id: string }[];
+      owner: {
+        id: string; name: string; email: string; createdAt: string;
+        trustProfile?: { trustScore: number; isVerified: boolean };
+      };
+    };
+  }[];
+  transaction: {
+    id: string; status: EscrowState;
+    orderAmount: string; platformFee: string; totalPaid: string;
+    amountToTransfer: string; ocrConfidence: number | null;
+    proofOfDelivery: string | null; paymentIntentId: string | null;
+    loanId: string | null; createdAt: string; updatedAt: string;
+    ledgerEntries: {
+      id: string; amount: string;
+      previousStatus: EscrowState; currentStatus: EscrowState;
+      timestamp: string; actorId: string;
+    }[];
+  } | null;
+}
+export interface AdminOrdersResponse {
+  data: AdminOrderListItem[];
+  meta: { total: number; page: number; limit: number; totalPages: number };
+}
 export function computeTotals(items: CheckoutItem[]) {
   const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
   const tax = +(subtotal * 0.05).toFixed(2); //5% fees 
@@ -145,5 +206,26 @@ export const orderService = {
   async getOrder(id: string): Promise<OrderDetail> {
     const { data } = await authApi.get(`/api/v1/orders/${id}`);
     return data;
+  },
+};
+export const adminOrderService = {
+  async getOrders(params: {
+    page?: number; limit?: number; status?: string; search?: string;
+  }): Promise<AdminOrdersResponse> {
+    const { data } = await authApi.get('/api/v1/orders', { params });
+    return data;
+  },
+ 
+  async getOrder(id: string): Promise<AdminOrderDetail> {
+    const { data } = await authApi.get(`/api/v1/orders/admin/${id}`);
+    return data;
+  },
+ 
+  async blockOrder(id: string): Promise<void> {
+    await authApi.patch(`/api/v1/orders/${id}/block`);
+  },
+ 
+  async unblockOrder(id: string): Promise<void> {
+    await authApi.patch(`/api/v1/orders/${id}/unblock`);
   },
 };

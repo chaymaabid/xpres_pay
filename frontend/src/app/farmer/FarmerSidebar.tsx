@@ -73,7 +73,7 @@ export default function FarmerSidebar() {
   ];
 
   return (
-    <aside className="fixed left-0 top-[3.7rem] h-screen w-[72px] hover:w-[240px] bg-white border-r border-gray-200 transition-all duration-300 ease-in-out group z-40 overflow-hidden">
+    <aside className="fixed left-0 top-[3.7rem] h-screen w-[72px] hover:w-[240px] bg-white border-r border-gray-200 transition-all duration-300 ease-in-out group z-10 overflow-hidden">
       <div className="flex flex-col h-full">
         
 

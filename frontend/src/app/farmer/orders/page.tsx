@@ -11,7 +11,7 @@ const escrowBadge: Record<EscrowState, { label: string; className: string }> = {
   LOCKED: { label: 'Funds Locked', className: 'bg-amber-50 text-amber-600 border border-amber-100' },
   DELIVERED:    { label: 'Delivered',    className: 'bg-emerald-50 text-emerald-600 border border-emerald-100' },
   RELEASED:     { label: 'Released',     className: 'bg-green-50 text-green-700 border border-green-200' },
- 
+  BLOCKED:   { label: 'Blocked',       className: 'bg-red-50 text-red-600 border border-red-200' },
 };
 
 export default function OrdersPage() {

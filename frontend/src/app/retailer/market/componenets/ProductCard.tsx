@@ -1,6 +1,6 @@
 'use client';
 import PresignedImage from "@/app/components/PresignedProductImage";
-import { Product, ProductMarket } from "@/app/services/product.service";
+import { Product, ProductMarket } from "@/services/product.service";
 import { useState } from "react";
 import RetailerDetailsModal from './DetailsModal';
 import { useCartContext } from "@/context/CartContext";

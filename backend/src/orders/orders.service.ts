@@ -9,8 +9,7 @@ import { CreateOrderItemDto } from 'src/order-items/dto/create-order-items';
 import { TransactionLedgerService } from 'src/transaction-ledger/transaction-ledger.service';
 import { contains } from 'class-validator';
 import { NotificationService } from 'src/notification/notification.service';
-import { NotificationType } from '@prisma/client';
-
+import { EscrowState, NotificationType, Prisma } from '@prisma/client';
 
 
 @Injectable()
@@ -141,6 +140,7 @@ async Order(dto: CreateOrderDto, keycloakId: string) {
       });
     }
     const fullyPaid = remainingAmount === 0;
+    const amountToTransfer=remainingAmount-preliminaryTax>=0?remainingAmount-preliminaryTax:0
     const txRecord = await tx.transaction.create({
       data: {
         orderId: order.id,
@@ -236,6 +236,14 @@ async getLoanForRetailer(
       search,
     });
   }
+  if (role=='ADMIN'){
+    return this.adminFindAll({
+      page,
+      limit,
+      status,
+      search,
+    })
+  }
 
   throw new ForbiddenException('Invalid role');
 }
@@ -246,9 +254,7 @@ async getLoanForRetailer(
     const where: any = { buyerId:idBuyer };
     if (status) {
       where.transaction = {
-        is: {
-          status,
-        },
+        is:{ status: status as EscrowState }
       };
     }
     if (search) {
@@ -301,9 +307,7 @@ async getLoanForRetailer(
   };
     if (status) {
       where.transaction = {
-        is: {
-          status,
-        },
+        is:{ status: status as EscrowState }
       };
     }
     if (search) {
@@ -331,7 +335,7 @@ async getLoanForRetailer(
           orderItems: {
             include: { product: { select: { id: true, name: true, owner: { select: { id: true, name: true } } } } },
           },
-          transaction: { select: { status: true, orderAmount: true, proofOfDelivery:true } },
+          transaction: { select: { status: true, orderAmount: true, amountToTransfer:true, proofOfDelivery:true } },
         },
       }),
       this.prisma.order.count({ where }),
@@ -342,7 +346,79 @@ async getLoanForRetailer(
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   }
-
+  async adminFindAll({ page = 1, limit = 20, status, search }: {
+    page?: number; limit?: number; status?: string; search?: string;
+  }) {
+    const skip = (page - 1) * limit;
+    const where: Prisma.OrderWhereInput = {};
+ 
+    if (status) {
+      where.transaction = { is: { status: status as EscrowState } };
+    }
+ 
+    if (search) {
+      where.OR = [
+        { id: { contains: search, mode: 'insensitive' } },
+        { buyer: { name: { contains: search, mode: 'insensitive' } } },
+        { buyer: { email: { contains: search, mode: 'insensitive' } } },
+        {
+          orderItems: {
+            some: {
+              product: {
+                owner: { name: { contains: search, mode: 'insensitive' } },
+              },
+            },
+          },
+        },
+        {
+          orderItems: {
+            some: {
+              product: { name: { contains: search, mode: 'insensitive' } },
+            },
+          },
+        },
+      ];
+    }
+ 
+    const [orders, total] = await Promise.all([
+      this.prisma.order.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          buyer: { select: { id: true, name: true, email: true } },
+          orderItems: {
+            include: {
+              product: {
+                select: {
+                  id: true,
+                  name: true,
+                  owner: { select: { id: true, name: true, email: true } },
+                },
+              },
+            },
+          },
+          transaction: {
+            select: {
+              id: true,
+              status: true,
+              platformFee: true,
+              amountToTransfer: true,
+              totalPaid: true,
+              loanId: true,
+            },
+          },
+        },
+      }),
+      this.prisma.order.count({ where }),
+    ]);
+ 
+    return {
+      data: orders,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
+  }
   async findOne(id: string, keycloackId: string) {
     const user=await this.usersService.findByKeycloakId(keycloackId);
     const order = await this.prisma.order.findUnique({
@@ -372,11 +448,52 @@ async getLoanForRetailer(
  
     return order;
   }
-
+  
+  async adminFindOne(id: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id },
+      include: {
+        buyer: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            createdAt: true,
+            trustProfile: { select: { trustScore: true, isVerified: true } },
+          },
+        },
+        orderItems: {
+          include: {
+            product: {
+              include: {
+                images: { take: 1 },
+                owner: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    createdAt: true,
+                    trustProfile: { select: { trustScore: true, isVerified: true } },
+                  },
+                },
+              },
+            },
+          },
+        },
+        transaction: {
+          include: {
+            ledgerEntries: { orderBy: { timestamp: 'asc' } },
+          },
+        },
+      },
+    });
+ 
+    if (!order) throw new NotFoundException('Order not found');
+    return order;
+  }
   async getFarmerEscrows(keycloakId: string) {
     const farmer = await this.usersService.findByKeycloakId(keycloakId);
     if (!farmer) throw new BadRequestException('Farmer not found');
-    // Get all orders related to that farmer with transaction status LOCKED
     const orders = await this.prisma.order.findMany({
       where: {
         orderItems: {
@@ -415,6 +532,82 @@ async getLoanForRetailer(
       orderBy: { createdAt: 'desc' },
     });
  
-    return orders;
+    return orders; 
+  }
+  async blockOrder(id: string, adminId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id },
+      include: { transaction: true },
+    });
+ 
+    if (!order) throw new NotFoundException('Order not found');
+    if (!order.transaction) throw new BadRequestException('No transaction found for this order');
+    if (order.transaction.status === 'BLOCKED') {
+      throw new BadRequestException('Order is already blocked');
+    }
+ 
+    const previousStatus = order.transaction.status;
+ 
+    await this.prisma.$transaction([
+      this.prisma.transaction.update({
+        where: { id: order.transaction.id },
+        data: { status: 'BLOCKED' },
+      }),
+      this.prisma.transactionLedger.create({
+        data: {
+          transactionId: order.transaction.id,
+          amount: order.transaction.orderAmount,
+          previousStatus,              // saved so unblock can restore
+          currentStatus: 'BLOCKED',
+          actorId: adminId,
+        },
+      }),
+    ]);
+ 
+    return { message: 'Order blocked successfully' };
+  }
+ 
+  async unblockOrder(id: string, adminId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id },
+      include: {
+        transaction: {
+          include: { ledgerEntries: { orderBy: { timestamp: 'asc' } } },
+        },
+      },
+    });
+ 
+    if (!order) throw new NotFoundException('Order not found');
+    if (!order.transaction) throw new BadRequestException('No transaction found');
+    if (order.transaction.status !== 'BLOCKED') {
+      throw new BadRequestException('Order is not blocked');
+    }
+ 
+    const blockedEntry = order.transaction.ledgerEntries
+      .slice()
+      .reverse()
+      .find((e) => e.currentStatus === 'BLOCKED');
+ 
+    if (!blockedEntry) throw new BadRequestException('Cannot determine previous status');
+ 
+    const restoreStatus = blockedEntry.previousStatus;
+ 
+    await this.prisma.$transaction([
+      this.prisma.transaction.update({
+        where: { id: order.transaction.id },
+        data: { status: restoreStatus },
+      }),
+      this.prisma.transactionLedger.create({
+        data: {
+          transactionId: order.transaction.id,
+          amount: order.transaction.orderAmount,
+          previousStatus: 'BLOCKED',
+          currentStatus: restoreStatus,
+          actorId: adminId,
+        },
+      }),
+    ]);
+ 
+    return { message: `Order unblocked and restored to ${restoreStatus}` };
   }
 }

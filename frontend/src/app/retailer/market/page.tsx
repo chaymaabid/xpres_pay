@@ -1,4 +1,4 @@
-import { getProducts, ProductMarket } from "@/app/services/product.service";
+import { getProducts, ProductMarket } from "@/services/product.service";
 import ProductCard  from '@/app/retailer/market/componenets/ProductCard'; 
 export default async function MarketPage() {
     const marketProducts: ProductMarket[]=await getProducts();

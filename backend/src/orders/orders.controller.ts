@@ -1,4 +1,4 @@
-import { Controller, Post,Req,Body,Get,Query, Param } from '@nestjs/common';
+import { Controller, Post,Req,Body,Get,Query, Param, Patch } from '@nestjs/common';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrdersService } from './orders.service';
@@ -15,7 +15,7 @@ export class OrdersController {
         return this.orderService.getFarmerEscrows(keycloakId);
     }
     @Get()
-    @Roles('RETAILER', 'FARMER')
+    @Roles('RETAILER', 'FARMER','ADMIN')
     findAll(
         @Req() req,
         @Query('page') page = '1',
@@ -24,13 +24,17 @@ export class OrdersController {
         @Query('search') search?: string,
     ) {
         const userRoles:string[]=req.user.roles??[];
-        const role = userRoles.find((r)=>['RETAILER','FARMER'].includes(r));
+        const role = userRoles.find((r)=>['RETAILER','FARMER','ADMIN'].includes(r));
         const userId = req.user.sub;
         return this.orderService.findAllByRole({role,userId,page: parseInt(page),limit: parseInt(limit),status,search,});
     }
     @Get(':id')
     findOne(@Req() req, @Param('id') id: string) {
         return this.orderService.findOne(id, req.user.sub);
+    }
+    @Get('admin/:id')
+    adminfindOne(@Param('id') id: string) {
+    return this.orderService.adminFindOne(id);
     }
     @Post()
     @Roles('RETAILER')
@@ -46,5 +50,14 @@ export class OrdersController {
     ) {
         const keycloakId = req.user.sub;
         return this.orderService.getLoanForRetailer(keycloakId, farmerId);
+    }
+    @Patch(':id/block')
+    block(@Param('id') id: string, @Req() req: any) {
+        return this.orderService.blockOrder(id, req.user.sub); // keycloakId
+    }
+ 
+    @Patch(':id/unblock')
+    unblock(@Param('id') id: string, @Req() req: any) {
+        return this.orderService.unblockOrder(id, req.user.sub);
     }
 }

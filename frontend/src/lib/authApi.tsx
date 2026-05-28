@@ -1,4 +1,3 @@
-// lib/authApi.ts
 import axios from "axios";
 import { getSession } from "next-auth/react";
 import { getServerSession } from "next-auth";
@@ -9,7 +8,6 @@ export const authApi = axios.create({
 });
 
 authApi.interceptors.request.use(async (config) => {
-  // ✅ Works in both server and client contexts
   const isServer = typeof window === "undefined";
   const session = isServer
     ? await getServerSession(authOptions)
