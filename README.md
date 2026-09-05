@@ -86,7 +86,7 @@ processing.
 The complete application architecture is illustrated below:
 
 <p align="center">
-  <img src="./docs/architecture.png" alt="XpresPay Application Architecture" width="1000"/>
+  <img src="./docs/architecture.jfif" alt="XpresPay Application Architecture" width="1000"/>
 </p>
 
 ## Frontend — Next.js
